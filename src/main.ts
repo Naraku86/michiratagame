@@ -41,8 +41,10 @@ const ui = createUI(document.querySelector<HTMLElement>('#app')!, {
     if (result.effect !== 'none') feedbackEffect = result.effect;
     const showFeedback = now - lastFeedback >= 80;
     if (showFeedback) { sound.play(pitch); lastFeedback = now; }
-    ui.render(state); ui.fatigue(efficiency(fatigue));
-    if (showFeedback) { ui.feedback(feedbackPoints, feedbackEffect, chain); clearFeedback(); }
+    if (showFeedback) {
+      ui.render(state); ui.fatigue(efficiency(fatigue));
+      ui.feedback(feedbackPoints, feedbackEffect, chain); clearFeedback();
+    }
   },
   soundEnabled: sound.enabled,
   toggleSound: () => sound.toggle(),
