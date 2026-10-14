@@ -53,3 +53,8 @@ Prestigio, offline, ranking y referidos quedan como decisiones futuras, no como 
 ## Actualización: desgaste de clics
 
 Autoclickers permitidos con rendimiento decreciente en clics y bonos: reserva de 24 clics, recarga de 8/s, exceso convertido en calor y recuperación de 1 unidad/s. Factor `1/(1+calor/20)^2`. Las trabajadoras mantienen su producción. Persistencia separada: recargar, reiniciar o cambiar de skin no elimina el desgaste. No se borraron récords ni se clasificó a ningún usuario como bot: los marcadores actuales no conservan cadencia y el backend aún recibe puntos del cliente.
+
+
+## Actualización: marcadores sospechosos
+
+El backend etiqueta «Tramposo · sospecha» si un crecimiento del récord supera 10 millones de puntos/s de tiempo transcurrido y una reserva de 40 millones. Ordena los sospechosos después de todos los no marcados; etiqueta y orden sobreviven a cambios de nombre y reinicios. Primer reporte establece una base, incluidos los registros migrados; un récord alto aislado no provoca acusación. Autoclick por sí solo no dispara la marca. Es una heurística revisable, no evidencia definitiva.

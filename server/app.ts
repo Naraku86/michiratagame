@@ -5,6 +5,9 @@ import { readFile } from 'node:fs/promises';
 import { resolve, extname, sep } from 'node:path';
 
 export const ACTIVE_MS = 60_000;
+// Generous envelope above current maximum production and fatigue-limited tapping.
+export const SCORE_RATE = 10_000_000;
+export const SCORE_BURST = 40_000_000;
 export function createApp(databasePath: string, distPath: string, now = Date.now) {
   const db = new DatabaseSync(databasePath);
   db.exec(`PRAGMA journal_mode=WAL;
@@ -14,24 +17,39 @@ export function createApp(databasePath: string, distPath: string, now = Date.now
     );
     CREATE INDEX IF NOT EXISTS players_best ON players(best DESC);
     CREATE INDEX IF NOT EXISTS players_seen ON players(seen);`);
+  // Additive migration preserves names, cookies and historical records.
+  const columns = new Set(db.prepare('PRAGMA table_info(players)').all().map(row => row.name));
+  for (const [column, definition] of [
+    ['suspected', 'INTEGER NOT NULL DEFAULT 0'],
+    ['checked_at', 'INTEGER NOT NULL DEFAULT 0'],
+    ['score_credit', `REAL NOT NULL DEFAULT ${SCORE_BURST}`],
+  ]) if (!columns.has(column)) db.exec(`ALTER TABLE players ADD COLUMN ${column} ${definition}`);
   const find = db.prepare('SELECT * FROM players WHERE token = ?');
   const insert = db.prepare('INSERT INTO players(id, token, name) VALUES (?, ?, ?)');
-  const update = db.prepare('UPDATE players SET name = ?, best = MAX(best, ?), seen = ? WHERE id = ?');
+  const update = db.prepare('UPDATE players SET name = ?, best = MAX(best, ?), seen = ?, suspected = ?, checked_at = ?, score_credit = ? WHERE id = ?');
   const count = db.prepare('SELECT COUNT(*) AS count FROM players WHERE seen > ?');
-  const top = db.prepare('SELECT id, name, best, seen FROM players ORDER BY best DESC, id ASC LIMIT 50');
-  const rank = db.prepare('SELECT COUNT(*) + 1 AS rank FROM players WHERE best > ? OR (best = ? AND id < ?)');
+  const top = db.prepare('SELECT id, name, best, seen, suspected FROM players WHERE suspected = 0 ORDER BY best DESC, id ASC LIMIT 50');
+  const suspects = db.prepare('SELECT id, name, best, seen, suspected FROM players WHERE suspected = 1 ORDER BY best DESC, id ASC LIMIT 10');
+  const rank = db.prepare('SELECT COUNT(*) + 1 AS rank FROM players WHERE suspected < ? OR (suspected = ? AND (best > ? OR (best = ? AND id < ?)))');
   const limits = new Map<string, { time: number; hits: number }>();
   const dist = resolve(distPath);
   function json(res: ServerResponse, status: number, data: unknown) {
     res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
     res.end(JSON.stringify(data));
   }
+  function publicPlayer(player: any) {
+    return { id: player.id, name: player.name, best: player.best,
+      rank: Number(rank.get(player.suspected, player.suspected, player.best, player.best, player.id)!.rank),
+      suspected: player.suspected === 1,
+      reason: player.suspected === 1 ? 'Aumento de puntos fuera del margen del juego; señal automática, no confirmación.' : '',
+    };
+  }
   function snapshot(player: any) {
     const cutoff = now() - ACTIVE_MS;
     return {
       active: Number(count.get(cutoff)!.count),
-      me: { id: player.id, name: player.name, best: player.best, rank: Number(rank.get(player.best, player.best, player.id)!.rank) },
-      players: top.all().map((row, i) => ({ id: row.id, name: row.name, best: row.best, rank: i + 1, active: Number(row.seen) > cutoff })),
+      me: publicPlayer(player),
+      players: [...top.all(), ...suspects.all()].map(row => ({ ...publicPlayer(row), active: Number(row.seen) > cutoff })),
     };
   }
   const server = createServer(async (req: IncomingMessage, res: ServerResponse) => {
@@ -79,7 +97,14 @@ export function createApp(databasePath: string, distPath: string, now = Date.now
           player = find.get(hash(token))!;
         }
         // shortcut: scores are client-reported, move game simulation to server for competitive play.
-        update.run(body.name === undefined ? player.name : body.name.trim(), Math.floor(body.points), time, player.id);
+        const candidate = Math.floor(body.points);
+        const delta = Math.max(0, candidate - Number(player.best));
+        const allowance = Number(player.score_credit) + Math.max(0, time - Number(player.checked_at)) / 1000 * SCORE_RATE;
+        // First contact/import establishes a baseline; high historical scores alone are not evidence.
+        const suspiciousJump = Number(player.checked_at) > 0 && delta > allowance;
+        const suspected = Number(player.suspected) === 1 || suspiciousJump;
+        const credit = Number(player.checked_at) > 0 ? Math.min(SCORE_BURST, Math.max(0, allowance - delta)) : SCORE_BURST;
+        update.run(body.name === undefined ? player.name : body.name.trim(), candidate, time, suspected ? 1 : 0, time, credit, player.id);
         player = find.get(String(player.token))!;
         json(res, 200, snapshot(player)); return;
       }

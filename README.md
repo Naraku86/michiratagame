@@ -63,6 +63,14 @@ This is a gameplay balancing mechanic, not verified bot detection. Existing lead
 - Clearing cookies, switching devices, or changing domains creates a new identity. Names are not verified accounts and may be duplicated.
 - Scores are reported by the client: this demo's leaderboard is not cheat-resistant.
 
+## Suspicious leaderboard records
+
+The server watches increases in reported records. Its generous allowance is ten million points per elapsed second plus a forty-million-point burst reserve; repeated reports cannot reuse that reserve. This sits above normal worker production and fatigue-limited tapping in the current game.
+
+A record that exceeds the allowance receives the public **“Tramposo · sospecha”** (suspected cheater) badge and is sorted below all unflagged players. The board shows up to fifty unflagged records followed by up to ten flagged records; personal rank uses the same ordering across all players. Flags persist through renaming and server restarts. Players can still play, buy upgrades, and change their names.
+
+The first report establishes a baseline, including imported saves and existing records after migration. A high historical score alone is not evidence, so old records are not automatically flagged. This heuristic can miss manipulation or produce false positives; it is not proof of cheating, and using an autoclicker alone does not trigger a flag. An administrator can clear a reviewed flag locally in SQLite by setting that player's `suspected` and `checked_at` to zero, which establishes a fresh baseline on the next update. There is no public flag-clearing endpoint.
+
 ## Project structure
 
 | Directory | Contents |

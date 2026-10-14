@@ -1,4 +1,4 @@
-type Player = { id: string; name: string; best: number; rank: number; active?: boolean };
+type Player = { id: string; name: string; best: number; rank: number; active?: boolean; suspected?: boolean; reason?: string };
 type Snapshot = { active: number; me: Player; players: Player[] };
 
 export function startCommunity(header: HTMLElement, getPoints: () => number) {
@@ -27,7 +27,7 @@ export function startCommunity(header: HTMLElement, getPoints: () => number) {
   const personal = document.createElement('p');
   const table = document.createElement('table');
   const caption = document.createElement('caption');
-  caption.textContent = 'Los 50 mejores récords';
+  caption.textContent = 'Top 50 · sospechosos al final';
   const head = document.createElement('thead');
   const heading = document.createElement('tr');
   for (const text of ['#', 'Jugador', 'Récord']) {
@@ -57,14 +57,24 @@ export function startCommunity(header: HTMLElement, getPoints: () => number) {
       if (!response.ok) throw new Error(data.error ?? 'No se pudo conectar.');
       const snapshot = data as Snapshot;
       summary.textContent = `👥 ${snapshot.active} ${snapshot.active === 1 ? 'activo' : 'activos'}`;
-      personal.textContent = `Tu puesto: #${snapshot.me.rank} · récord ${numbers.format(snapshot.me.best)} pts`;
+      personal.textContent = `Tu puesto: #${snapshot.me.rank} · récord ${numbers.format(snapshot.me.best)} pts${snapshot.me.suspected ? ' · Tramposo · sospecha' : ''}`;
+      personal.title = snapshot.me.reason ?? '';
       if (!initialized || name !== undefined) { input.value = snapshot.me.name; initialized = true; }
       rows.replaceChildren();
       for (const player of snapshot.players) {
         const row = document.createElement('tr');
-        if (player.id === snapshot.me.id) row.className = 'community__me';
+        if (player.id === snapshot.me.id) row.classList.add('community__me');
+        if (player.suspected) row.classList.add('community__suspected');
         for (const text of [String(player.rank), `${player.active ? '● ' : ''}${player.name}`, numbers.format(player.best)]) {
-          const cell = document.createElement('td'); cell.textContent = text; row.append(cell);
+          const cell = document.createElement('td'); cell.textContent = text;
+          if (row.children.length === 1 && player.suspected) {
+            const badge = document.createElement('span');
+            badge.className = 'community__suspect-badge';
+            badge.textContent = 'Tramposo · sospecha';
+            badge.title = player.reason ?? '';
+            cell.append(badge);
+          }
+          row.append(cell);
         }
         rows.append(row);
       }

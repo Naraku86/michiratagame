@@ -956,3 +956,6 @@ summary:focus-visible,
 }
 
 @media (max-height: 40rem) { .crew__sprites { display: none; } }
+
+.community__suspected { color: #ffb6a8; opacity: 0.85; }
+.community__suspect-badge { display: block; margin-top: 0.2rem; padding: 0.15rem 0.25rem; border: 1px solid #ffb6a8; border-radius: 6px; font-size: 0.7rem; }
