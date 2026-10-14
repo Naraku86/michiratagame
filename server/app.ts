@@ -196,12 +196,14 @@ export function createApp(
     ['checked_at', 'INTEGER NOT NULL DEFAULT 0'],
     ['score_credit', `REAL NOT NULL DEFAULT ${SCORE_BURST}`],
   ]) if (!columns.has(column)) db.exec(`ALTER TABLE players ADD COLUMN ${column} ${definition}`);
+  db.exec('CREATE INDEX IF NOT EXISTS players_ranking ON players(suspected, best DESC, id ASC)');
   const find = db.prepare('SELECT * FROM players WHERE token = ?');
   const insert = db.prepare('INSERT INTO players(id, token, name) VALUES (?, ?, ?)');
   const update = db.prepare('UPDATE players SET name = ?, best = MAX(best, ?), seen = ?, suspected = ?, checked_at = ?, score_credit = ? WHERE id = ?');
   const count = db.prepare('SELECT COUNT(*) AS count FROM players WHERE seen > ?');
   const top = db.prepare('SELECT id, name, best, seen, suspected FROM players WHERE suspected = 0 ORDER BY best DESC, id ASC LIMIT 50');
   const suspects = db.prepare('SELECT id, name, best, seen, suspected FROM players WHERE suspected = 1 ORDER BY best DESC, id ASC LIMIT 10');
+  const normalCount = db.prepare('SELECT COUNT(*) AS count FROM players WHERE suspected = 0');
   const rank = db.prepare('SELECT COUNT(*) + 1 AS rank FROM players WHERE suspected < ? OR (suspected = ? AND (best > ? OR (best = ? AND id < ?)))');
   const rateLimiter = new RateLimiter(rateLimitPerClient, rateLimitGlobal, rateWindowMs, rateMaxClients);
   const dist = resolve(distPath);
@@ -210,10 +212,9 @@ export function createApp(
     res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' });
     res.end(JSON.stringify(data));
   }
-
-  function publicPlayer(player: any) {
+  function publicPlayer(player: any, position: number) {
     return { id: player.id, name: player.name, best: player.best,
-      rank: Number(rank.get(player.suspected, player.suspected, player.best, player.best, player.id)!.rank),
+      rank: position,
       suspected: player.suspected === 1,
       reason: player.suspected === 1 ? 'Aumento de puntos fuera del margen del juego; señal automática, no confirmación.' : '',
     };
@@ -221,10 +222,17 @@ export function createApp(
 
   function snapshot(player: any) {
     const cutoff = now() - ACTIVE_MS;
+    const regularRows = top.all();
+    const suspectedRows = suspects.all();
+    const regularTotal = suspectedRows.length ? Number(normalCount.get()!.count) : 0;
+    const personalRank = Number(rank.get(player.suspected, player.suspected, player.best, player.best, player.id)!.rank);
     return {
       active: Number(count.get(cutoff)!.count),
-      me: publicPlayer(player),
-      players: [...top.all(), ...suspects.all()].map(row => ({ ...publicPlayer(row), active: Number(row.seen) > cutoff })),
+      me: publicPlayer(player, personalRank),
+      players: [
+        ...regularRows.map((row, index) => ({ ...publicPlayer(row, index + 1), active: Number(row.seen) > cutoff })),
+        ...suspectedRows.map((row, index) => ({ ...publicPlayer(row, regularTotal + index + 1), active: Number(row.seen) > cutoff })),
+      ],
     };
   }
 

@@ -227,3 +227,63 @@ test('client map is bounded and prunes expired entries when full (size === max)'
     assert.equal((await postFrom('10.0.0.3')).status, 200, 'expired entries are pruned and the new client is admitted');
   } finally { await close(server); await rm(dir, { recursive: true, force: true }); }
 });
+
+test('ranking preserves global positions and tied ids beyond both board limits using its compound index', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'michi-ranking-'));
+  const path = join(dir, 'test.sqlite');
+  const time = 1_000_000;
+  const server = createApp(path, dir, () => time);
+  const db = new DatabaseSync(path);
+  const tokenFor = (index: number) => index.toString(16).padStart(64, '0');
+  const insert = db.prepare('INSERT INTO players(id, token, name, best, seen, suspected, checked_at) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  for (let i = 0; i < 72; i++) {
+    const id = `player-${String(i).padStart(3, '0')}`;
+    insert.run(id, createHash('sha256').update(tokenFor(i)).digest('hex'), id, i < 60 ? 100 : 200, time, i < 60 ? 0 : 1, time);
+  }
+  for (const suspected of [0, 1]) {
+    const plan = db.prepare(`EXPLAIN QUERY PLAN SELECT id, name, best, seen, suspected FROM players WHERE suspected = ? ORDER BY best DESC, id ASC LIMIT ${suspected ? 10 : 50}`).all(suspected);
+    assert.ok(plan.some(row => String(row.detail).includes('players_ranking')), JSON.stringify(plan));
+    assert.ok(plan.every(row => !String(row.detail).includes('TEMP B-TREE')), JSON.stringify(plan));
+  }
+  db.close();
+  const base = await listen(server);
+  async function board(index: number) {
+    const response = await fetch(base + '/api/presence', { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: `michi_player=${tokenFor(index)}`, Origin: base }, body: JSON.stringify({ points: 0 }) });
+    assert.equal(response.status, 200);
+    return response.json();
+  }
+  try {
+    const normal = await board(55);
+    assert.equal(normal.me.rank, 56);
+    assert.equal(normal.me.suspected, false);
+    assert.equal(normal.players.length, 60);
+    assert.deepEqual(normal.players.slice(0, 50).map((p: any) => [p.id, p.rank]), Array.from({ length: 50 }, (_, i) => [`player-${String(i).padStart(3, '0')}`, i + 1]));
+    assert.deepEqual(normal.players.slice(50).map((p: any) => [p.id, p.rank]), Array.from({ length: 10 }, (_, i) => [`player-${String(i + 60).padStart(3, '0')}`, i + 61]));
+    const suspect = await board(71);
+    assert.equal(suspect.me.rank, 72);
+    assert.equal(suspect.me.suspected, true);
+    assert.equal(suspect.players.some((p: any) => p.id === suspect.me.id), false);
+  } finally { await close(server); await rm(dir, { recursive: true, force: true }); }
+});
+
+test('ranking starts at one with no regular players and also with no suspects', async () => {
+  for (const suspected of [0, 1]) {
+    const dir = await mkdtemp(join(tmpdir(), 'michi-ranking-empty-'));
+    const path = join(dir, 'test.sqlite');
+    const server = createApp(path, dir, () => 1_000_000);
+    const db = new DatabaseSync(path);
+    const token = 'b'.repeat(64);
+    db.prepare('INSERT INTO players(id, token, name, best, suspected) VALUES (?, ?, ?, ?, ?)').run('only', createHash('sha256').update(token).digest('hex'), 'Único', 0, suspected);
+    db.close();
+    const base = await listen(server);
+    try {
+      const response = await fetch(base + '/api/presence', { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: `michi_player=${token}` }, body: JSON.stringify({ points: 0 }) });
+      assert.equal(response.status, 200);
+      const result = await response.json();
+      assert.equal(result.me.rank, 1);
+      assert.equal(result.players.length, 1);
+      assert.equal(result.players[0].rank, 1);
+      assert.equal(result.players[0].suspected, Boolean(suspected));
+    } finally { await close(server); await rm(dir, { recursive: true, force: true }); }
+  }
+});
