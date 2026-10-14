@@ -117,6 +117,10 @@ REPRODUCIDO H6  {"spoofedIps":10000,"newVisitorStatus":503,"newVisitorAfter1h":5
 - **Falsos positivos para jugadores honestos:** el máximo honesto calculado (clic nivel 100 con Futbolista a 8 clics/s ≈ 2,9 M/s; Robot ≈ 1,6 M/s; producción Magnate nivel 100 ≈ 0,3 M/s) queda por debajo de 10 M/s, y una ráfaga de 24 clics (≈ 9 M) por debajo de 40 M. No se encontró un caso honesto que reciba la marca, **salvo** el efecto aceptado del arreglo de H1 sobre partidas locales antiguas.
 - **Reloj del servidor frente al del cliente:** el servidor sólo usa su propio `now()`; el reloj del cliente no influye en la marca.
 
+## Estado frente a `main` actual
+
+Mientras se hacía la auditoría, `main` avanzó hasta `4866551`. `server/`, `src/main.ts` y `src/community.ts` no cambiaron, así que H1-H7, H9 y H10 siguen vigentes. **H8 está corregido en `main`** por `4866551 Preserve fatigue when loading after clock rollback`, con el mismo arreglo propuesto aquí (`updatedAt: Math.min(value.updatedAt, now)`). Esto se verificó leyendo el diff, no ejecutando la PoC sobre `main`. Allí, H8 debería aparecer como `NO REPRODUCIDO` y el script saldría con código 1 por ese motivo.
+
 ## Comparación con el frente de defensa (`work/protection`)
 
 En el momento de la auditoría, `work/protection` y `work/auth` no tenían commits sobre `main` (`git log main..work/protection` vacío). Por eso estos hallazgos describen `main` y no evalúan ningún arreglo en curso. Para no duplicar trabajo:
