@@ -40,3 +40,7 @@ Los siete frentes entregaron sus artefactos y se integraron en `main`:
 Validación integrada: 113 pruebas, build de tipos incluyendo tools, navegador en cinco tamaños, compra/equipado/recarga de las 18 skins y cuentas con HTTP simulado. La configuración real de proveedores, el iframe de itch, Windows/Steamworks y la percepción de diversión no se probaron.
 
 Siguiente trabajo priorizado en [COLA_DE_CORRECCIONES.md](COLA_DE_CORRECCIONES.md). El balance conserva las seis skins anteriores; las nuevas tienen coeficientes explícitos para próximos ajustes. Se ajustaron Queso, Oficinista, Ñi y Mágica con pruebas de nichos: producción pasiva, clic pausado y clic activo en niveles 16, 60 y 100.
+
+## Actualización del 14 de octubre
+
+Prestigio activado por petición del usuario, con confirmación individual, guardado v3 y migración aditiva del tablero. Hay super mejoras permanentes, bono de ritmo humano, sobrecalentamiento y deducciones de clasificación. Véase [RITMO_Y_RENACIMIENTO.md](RITMO_Y_RENACIMIENTO.md). La integración actual pasa 119 pruebas; la validación autoritativa de progreso en el servidor sigue pendiente.

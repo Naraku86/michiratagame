@@ -870,7 +870,7 @@ summary:focus-visible,
 .upgrade__info[open] summary { color: var(--text); }
 .upgrade__buy { padding-right: 2.5rem; }
 .skins { min-width: 0; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
-.skins__toggle { min-height: 44px; padding: 0.6rem 0.8rem; cursor: pointer; font-weight: 700; overflow-wrap: anywhere; }
+.skins__toggle, .prestige__toggle { min-height: 44px; padding: 0.6rem 0.8rem; cursor: pointer; font-weight: 700; overflow-wrap: anywhere; }
 .skins__list { max-height: 22dvh; overflow-y: auto; overscroll-behavior: contain; padding: 0.5rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .game__settings { position: relative; }
 .game__settings-title { cursor: pointer; min-height: 44px; padding: 0.65rem; }
@@ -992,3 +992,11 @@ summary:focus-visible,
 @media (max-width: 47.99rem), (pointer: coarse) {
   .game__settings, .community, .community__content, .skins, .skins__list { touch-action: pan-y pinch-zoom; }
 }
+
+.game__settings[open] { max-height: 75dvh; overflow-y: auto; overscroll-behavior: contain; touch-action: pan-y pinch-zoom; }
+.prestige { display: grid; gap: 0.4rem; }
+.prestige button { min-height: 44px; margin: 0.25rem 0; }
+.prestige button:disabled { opacity: 0.5; cursor: default; }
+.score__prestige { margin: 0.2rem 0 0; font-size: 0.75rem; color: var(--gold); }
+.game[data-rebirth='gold'] .hero__button { box-shadow: 0 0 0 3px #ffd23f; }
+.game[data-rebirth='astral'] .hero__button { box-shadow: 0 0 0 3px #c9a6ff, 0 0 18px #b06ac077; }

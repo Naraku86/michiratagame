@@ -173,7 +173,7 @@ test('bench: frequent resets earn fewer bigotes per hour than full laps', () => 
 });
 
 test('high scaling: maxed prestige stays under the suspicious-score rate for every skin', () => {
-  for (const skin of SKINS) assert.ok(worstCaseRate(skin.id) < SUSPICIOUS_RATE * 0.75, skin.id);
+  for (const skin of SKINS) assert.ok(worstCaseRate(skin.id) * 1.1 < SUSPICIOUS_RATE * 0.75, skin.id);
   // A 30 taps/s autoclicker gains little over 8 taps/s because of fatigue.
   assert.ok(worstCaseRate('football', 30) < worstCaseRate('football', 8) * 1.1);
 });
@@ -182,3 +182,11 @@ test('the simulation is deterministic', () => {
   assert.deepEqual(simulateLaps(60, 2, 3), simulateLaps(60, 2, 3));
   assert.equal(SUPER.garra.max + SUPER.sindicato.max + SUPER.regateo.max, 15);
 });
+
+ test('human rhythm bonus is bounded, combines with prestige and counts actual earned points', () => {
+  const game = initialState(); const p = {...freshPrestige(), claimed: 1, lifetimeEarned: 400000, spent: 1, upgrades: {garra: 1, sindicato: 0, regateo: 0}};
+  const ordinary = prestigeTap(game, p, 1, .5, 1);
+  assert.equal(prestigeTap(game, p, 1, .5, 1, 1.1).amount, ordinary.amount * 1.1);
+  assert.equal(prestigeTap(game, p, 1, .5, 1, 100).amount, ordinary.amount * 1.1);
+  assert.equal(prestigeTap(game, p, 1, .5, 1, NaN).amount, ordinary.amount);
+ });

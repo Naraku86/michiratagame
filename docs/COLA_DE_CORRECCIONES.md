@@ -25,7 +25,7 @@ Completar proyecto Supabase, claves publicables, proveedores Google/Meta, redire
 
 ## Encargo P2: balance y prestigio
 
-Usar `npm run balance` y `npm run prestige:simulate`, no descripciones de IA como prueba. Definir tiempos objetivo de compra y de una vuelta, luego cambiar coeficientes con comparación antes/después. Prestigio conserva skins y no limpia desgaste, identidad ni marca de sospecha. No activar resets de jugadores con el prototipo actual.
+Usar `npm run balance` y `npm run prestige:simulate`, no descripciones de IA como prueba. Definir tiempos objetivo de compra y de una vuelta, luego cambiar coeficientes con comparación antes/después. Prestigio conserva skins y no limpia desgaste, identidad ni marca de sospecha. Prestigio activado el 14 de octubre con confirmación individual y migración v3, conservando skins. Pendiente validar las ganancias y los bigotes en el servidor.
 
 ## Encargo P3: infraestructura y publicación
 

@@ -11,8 +11,9 @@ A project from a community of friends, developed with help from AI. The project'
 - Responsive gameplay for phones and PCs, with the score counter and upgrade buttons always visible.
 - Twenty-four skins with powers, automated workers, and multipliers every ten levels.
 - Synthesized sound, particles, and animated stickers, with mute and animation controls. Swipe a reward sticker sideways to dismiss it.
-- Local game saves.
-- Autoclickers are allowed, with progressive click fatigue: short bursts are tolerated, but sustained excess clicks earn less over time. Rest restores efficiency; worker production is unaffected.
+- Local game saves with additive v1/v2 migration to v3; prestige, board record and deductions persist together.
+- Steady play at 1–8 clicks/second earns a +10% click bonus after five seconds. Sustained play above 30 clicks/second for ten seconds pauses production and reduces wallet and leaderboard points by 1% per second, never below zero. Rest clears overheating; ordinary fatigue still applies.
+- Rebirth at click/worker level 40 grants bigotes based on cumulative earnings. Keep skins and buy permanent click/production boosts (up to ×2) and upgrade discounts (up to 20%). Each claimed bigote adds 1% to the historical record on the leaderboard, capped at 25%; penalties are deducted. Confirm rebirth under Settings, separately from deleting a save.
 - A backend with an active-player counter, public player names, and a leaderboard persisted in SQLite.
 
 ## Getting started

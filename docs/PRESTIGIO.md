@@ -1,6 +1,6 @@
 # Prestigio: diseño mínimo y simulación
 
-Fecha: 13 de octubre de 2026. Esto es solo análisis. No cambia `src/`, `server/`, `package.json` ni la demo, y no activa ningún reinicio. El coordinador decide si se implementa y cuándo.
+Análisis original: 13 de octubre de 2026. **Actualización del 14 de octubre: prestigio integrado en la demo por petición del usuario.** Las fórmulas compartidas están en `src/prestige.ts`; `tools/prestige.ts` conserva el benchmark. Las tablas siguientes documentan el experimento previo; véase `RITMO_Y_RENACIMIENTO.md` para las reglas activas y sus límites.
 
 Archivos:
 

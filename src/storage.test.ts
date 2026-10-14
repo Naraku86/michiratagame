@@ -31,3 +31,18 @@ test('storage failures do not crash play', () => {
   assert.equal(JSON.parse(raw).version, 2);
   assert.deepEqual(load(storage).state, saved);
  });
+
+test('v3 saves prestige, rhythm and board deductions atomically and preserves corrupt metadata', async () => {
+  const { freshPrestige } = await import('./prestige.ts');
+  const { freshRhythm } = await import('./rhythm.ts');
+  let raw = '';
+  const storage = { getItem: () => raw, setItem: (_: string, value: string) => { raw = value; } };
+  const progress = { prestige: freshPrestige(), rhythm: freshRhythm(1000), boardBest: 10000, penalty: 123 };
+  assert.equal(save(storage, initialState(), progress), true);
+  assert.equal(JSON.parse(raw).version, 3);
+  assert.deepEqual(load(storage).progress, progress);
+  const invalid = JSON.parse(raw); invalid.progress.penalty = -1; raw = JSON.stringify(invalid);
+  assert.equal(load(storage).writable, false);
+  assert.equal(JSON.parse(raw).progress.penalty, -1);
+  assert.equal(save(storage, initialState(), {...progress, penalty: Infinity}), false);
+});

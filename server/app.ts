@@ -203,19 +203,26 @@ export function createApp(
   for (const [column, definition] of [
     ['suspected', 'INTEGER NOT NULL DEFAULT 0'],
     ['checked_at', 'INTEGER NOT NULL DEFAULT 0'],
+    ['bigotes', 'INTEGER NOT NULL DEFAULT 0'],
+    ['penalty', 'REAL NOT NULL DEFAULT 0'],
+    ['ranking_points', 'INTEGER NOT NULL DEFAULT 0'],
     ['score_credit', `REAL NOT NULL DEFAULT ${SCORE_BURST}`],
   ]) if (!columns.has(column)) db.exec(`ALTER TABLE players ADD COLUMN ${column} ${definition}`);
+  if (!columns.has('ranking_points')) db.exec('UPDATE players SET ranking_points = best');
+  db.exec('CREATE INDEX IF NOT EXISTS players_score ON players(suspected, ranking_points DESC, id ASC)');
   db.exec('CREATE INDEX IF NOT EXISTS players_ranking ON players(suspected, best DESC, id ASC)');
   const find = db.prepare('SELECT * FROM players WHERE token = ?');
   const findById = db.prepare('SELECT * FROM players WHERE id = ?');
   const authLinks = createAuthLinks(db, now);
   const insert = db.prepare('INSERT INTO players(id, token, name) VALUES (?, ?, ?)');
   const update = db.prepare('UPDATE players SET name = ?, best = MAX(best, ?), seen = ?, suspected = ?, checked_at = ?, score_credit = ? WHERE id = ?');
+  const updateScore = db.prepare('UPDATE players SET bigotes = MAX(bigotes, ?), penalty = MAX(penalty, ?) WHERE id = ?');
+  const recalculateScore = db.prepare('UPDATE players SET ranking_points = CAST(MAX(0, best * (1 + MIN(25, bigotes) / 100.0) - penalty) AS INTEGER) WHERE id = ?');
   const count = db.prepare('SELECT COUNT(*) AS count FROM players WHERE seen > ?');
-  const top = db.prepare('SELECT id, name, best, seen, suspected FROM players WHERE suspected = 0 ORDER BY best DESC, id ASC LIMIT 50');
-  const suspects = db.prepare('SELECT id, name, best, seen, suspected FROM players WHERE suspected = 1 ORDER BY best DESC, id ASC LIMIT 10');
+  const top = db.prepare('SELECT id, name, best, seen, suspected, bigotes, ranking_points FROM players WHERE suspected = 0 ORDER BY ranking_points DESC, id ASC LIMIT 50');
+  const suspects = db.prepare('SELECT id, name, best, seen, suspected, bigotes, ranking_points FROM players WHERE suspected = 1 ORDER BY ranking_points DESC, id ASC LIMIT 10');
   const normalCount = db.prepare('SELECT COUNT(*) AS count FROM players WHERE suspected = 0');
-  const rank = db.prepare('SELECT COUNT(*) + 1 AS rank FROM players WHERE suspected < ? OR (suspected = ? AND (best > ? OR (best = ? AND id < ?)))');
+  const rank = db.prepare('SELECT COUNT(*) + 1 AS rank FROM players WHERE suspected < ? OR (suspected = ? AND (ranking_points > ? OR (ranking_points = ? AND id < ?)))');
   const rateLimiter = new RateLimiter(rateLimitPerClient, rateLimitGlobal, rateWindowMs, rateMaxClients);
   const registrationLimiter = new RateLimiter(limits.newPlayerPerClient ?? 10, limits.newPlayerGlobal ?? 100, rateWindowMs, rateMaxClients);
   const staticLimiter = new RateLimiter(limits.staticPerClient ?? 600, limits.staticGlobal ?? 6000, rateWindowMs, rateMaxClients);
@@ -226,7 +233,7 @@ export function createApp(
     res.end(JSON.stringify(data));
   }
   function publicPlayer(player: any, position: number) {
-    return { id: player.id, name: player.name, best: player.best,
+    return { id: player.id, name: player.name, best: player.ranking_points, record: player.best, bigotes: player.bigotes,
       rank: position,
       suspected: player.suspected === 1,
       reason: player.suspected === 1 ? 'Aumento de puntos fuera del margen del juego; señal automática, no confirmación.' : '',
@@ -238,10 +245,10 @@ export function createApp(
     const regularRows = top.all();
     const suspectedRows = suspects.all();
     const regularTotal = suspectedRows.length ? Number(normalCount.get()!.count) : 0;
-    const personalRank = Number(rank.get(player.suspected, player.suspected, player.best, player.best, player.id)!.rank);
+    const personalRank = Number(rank.get(player.suspected, player.suspected, player.ranking_points, player.ranking_points, player.id)!.rank);
     return {
       active: Number(count.get(cutoff)!.count),
-      me: { ...publicPlayer(player, personalRank), account: user ? { id: user.id, email: user.email } : null },
+      me: { ...publicPlayer(player, personalRank), penalty: player.penalty, account: user ? { id: user.id, email: user.email } : null },
       players: [
         ...regularRows.map((row, index) => ({ ...publicPlayer(row, index + 1), active: Number(row.seen) > cutoff })),
         ...suspectedRows.map((row, index) => ({ ...publicPlayer(row, regularTotal + index + 1), active: Number(row.seen) > cutoff })),
@@ -322,6 +329,10 @@ export function createApp(
           json(res, 400, { error: 'Puntuación inválida.' });
           return;
         }
+        if ((body.bigotes !== undefined && (!Number.isInteger(body.bigotes) || body.bigotes < 0 || body.bigotes > 1357)) ||
+          (body.penalty !== undefined && (!Number.isFinite(body.penalty) || body.penalty < 0 || body.penalty > 1e15))) {
+          json(res, 400, { error: 'Prestigio o penalización inválidos.' }); return;
+        }
         if (body.name !== undefined && (typeof body.name !== 'string' || !/^[\p{L}\p{N} _.'-]{1,24}$/u.test(body.name.trim()) || !body.name.trim())) {
           json(res, 400, { error: 'Usa un nombre de 1 a 24 letras, números o espacios.' });
           return;
@@ -363,6 +374,8 @@ export function createApp(
         const suspected = Number(player.suspected) === 1 || suspiciousJump;
         const credit = Number(player.checked_at) > 0 ? Math.min(SCORE_BURST, Math.max(0, allowance - delta)) : SCORE_BURST;
         update.run(body.name === undefined ? player.name : body.name.trim(), candidate, time, suspected ? 1 : 0, time, credit, player.id);
+        updateScore.run(body.bigotes ?? 0, body.penalty ?? 0, player.id);
+        recalculateScore.run(player.id);
         player = find.get(String(player.token))!;
         json(res, 200, snapshot(player, user));
         return;

@@ -1,6 +1,7 @@
+import { freshPrestige, availableBigotes, pendingBigotes, canPrestige, SUPER, SUPER_IDS, superCost, clickMultiplier, productionMultiplier, prestigeCost, type PrestigeState, type SuperId } from './prestige.ts';
 import { dismissOnSwipe } from './swipe.ts';
 import './style.css';
-import { cost, milestoneMultiplier, pointsPerClick, production, SKINS, NEW_SKIN_POWERS } from './game.ts';
+import { milestoneMultiplier, pointsPerClick, production, SKINS, NEW_SKIN_POWERS } from './game.ts';
 import type { GameState, Upgrade, Skin, TapEffect } from './game.ts';
 
 export interface UIHandlers {
@@ -10,13 +11,15 @@ export interface UIHandlers {
   buy: (upgrade: Upgrade) => void;
   skin: (skin: Skin) => void;
   reset: () => void;
+  prestige: () => void;
+  super: (id: SuperId) => void;
 }
 
 export interface UI {
-  render: (state: GameState) => void;
+  render: (state: GameState, prestige?: PrestigeState) => void;
   feedback: (amount: number, effect: TapEffect, chain: number) => void;
   status: (message: string) => void;
-  fatigue: (factor: number) => void;
+  fatigue: (factor: number, penalty?: boolean, steady?: boolean) => void;
   celebrate: (message: string, animation?: 'face' | 'jump') => void;
 }
 
@@ -181,6 +184,8 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
   const perClick = el('dd', 'stats__value', '0');
   let baseClickReward = 1;
   let clickFactor = 1;
+  let productionBeforePenalty = 0;
+  let penaltyOn = false;
   const perSecond = el('dd', 'stats__value', '0');
   const perClickItem = el('div', 'stats__item stats__item--click');
   perClickItem.append(el('dt', 'stats__label', 'Por clic'), perClick);
@@ -328,7 +333,7 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
   combo.append(comboEvent, comboChain);
   const fatigueNotice = el('p', 'fatigue');
   fatigueNotice.hidden = true;
-  fatigueNotice.title = 'Los clics rápidos sostenidos reducen sus puntos y bonos. Descansar recupera el rendimiento; las trabajadoras no se afectan.';
+  fatigueNotice.title = 'Ritmo 1–8/s: bono +10 %. Más de 30/s durante 10 segundos: saldo y tablero −1 %/s, producción pausada. Descansa para recuperar.';
 
   // Cuadrilla de trabajadoras
   const crew = el('section', 'crew');
@@ -450,7 +455,24 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
   statusLine.hidden = true;
 
   // Reinicio: a la mano en todas las secciones, pero secundario.
-  const resetButton = el('button', 'game__reset', 'Reiniciar progreso');
+  const prestigeMenu = el('details', 'prestige');
+  const prestigeSummary = el('summary', 'prestige__toggle', 'Renacer y super mejoras');
+  const prestigeInfo = el('p', 'game__note');
+  const rebirthButton = el('button', 'game__reset', 'Renacer');
+  rebirthButton.type = 'button';
+  rebirthButton.addEventListener('click', () => handlers.prestige());
+  const superButtons = new Map<SuperId, HTMLButtonElement>();
+  prestigeMenu.append(prestigeSummary, prestigeInfo, rebirthButton);
+  for (const id of SUPER_IDS) {
+    const button = el('button', 'game__reset');
+    button.type = 'button'; button.title = SUPER[id].text;
+    button.addEventListener('click', () => handlers.super(id));
+    superButtons.set(id, button); prestigeMenu.append(button);
+  }
+  settings.append(prestigeMenu);
+  const prestigeBadge = el('p', 'score__prestige');
+  prestigeBadge.hidden = true; scoreMain.append(prestigeBadge);
+  const resetButton = el('button', 'game__reset', 'Borrar partida');
   resetButton.type = 'button';
   resetButton.addEventListener('click', () => handlers.reset());
   settings.append(el('p', 'game__note', 'Guardado en este dispositivo. La producción se pausa al salir.'), resetButton);
@@ -460,20 +482,20 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
   app.append(header, score, playPanel, controls, statusLine, purchaseReward);
   root.replaceChildren(app);
 
-  function renderUpgrade(state: GameState, upgrade: Upgrade, level: number): void {
+  function renderUpgrade(state: GameState, upgrade: Upgrade, level: number, p: PrestigeState): void {
     const card = cards[upgrade];
     const hire = upgrade === 'auto';
     const maxed = level >= MAX_LEVEL;
-    const price = cost(state, upgrade);
+    const price = prestigeCost(state, p, upgrade);
     const unit = hire ? 'puntos/s' : 'puntos por clic';
-    const current = hire ? production(state) : pointsPerClick(state);
+    const current = hire ? production(state) * productionMultiplier(p) : pointsPerClick(state) * clickMultiplier(p);
     setText(card.level, maxed ? (hire ? 'Cuadrilla completa' : 'Nivel máximo') : hire ? `${formatNumber(level)} contratadas` : `Nivel ${formatNumber(level)}`);
     if (maxed) {
       setText(card.effect, `Al máximo: ${formatNumber(current)} ${unit}.`);
     } else {
       // Vista previa: mismo estado con un nivel más, sin gastar puntos.
       const preview: GameState = hire ? { ...state, autoLevel: level + 1 } : { ...state, clickLevel: level + 1 };
-      const next = hire ? production(preview) : pointsPerClick(preview);
+      const next = hire ? production(preview) * productionMultiplier(p) : pointsPerClick(preview) * clickMultiplier(p);
       const milestone = milestoneMultiplier(level + 1) > milestoneMultiplier(level);
       setText(card.effect, `${milestone ? '¡Potencia duplicada! ' : ''}${formatNumber(current)} → ${formatNumber(next)} ${unit}`);
     }
@@ -531,7 +553,19 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
   let previousClickLevel = 0;
   let previousAutoLevel = 0;
   let previousSkin: Skin = 'original';
-  function render(state: GameState): void {
+  function render(state: GameState, p = freshPrestige()): void {
+    const eligible = canPrestige(state, p);
+    setText(prestigeInfo, `${availableBigotes(p)} bigotes disponibles · ${p.runs} renacimientos. Conservas skins y super mejoras; saldo y niveles vuelven a cero. ${eligible.ok ? 'Listo para renacer.' : eligible.reason === 'levels' ? 'Necesitas clic y trabajadoras en nivel 40.' : 'Gana más puntos para obtener otro bigote.'}`);
+    rebirthButton.disabled = !eligible.ok;
+    setText(rebirthButton, `Renacer · +${pendingBigotes(p)} bigotes`);
+    for (const id of SUPER_IDS) {
+      const level = p.upgrades[id]; const button = superButtons.get(id)!;
+      button.disabled = level >= SUPER[id].max || availableBigotes(p) < superCost(level);
+      setText(button, `${SUPER[id].name} ${level}/${SUPER[id].max} · ${level >= SUPER[id].max ? 'Completa' : `${superCost(level)} bigotes`}`);
+    }
+    prestigeBadge.hidden = p.claimed === 0;
+    setText(prestigeBadge, `🎖 ${p.claimed} bigotes · tablero +${Math.min(25, p.claimed)} %`);
+    app.dataset.rebirth = p.achievements.includes('vuelta-completa') ? 'astral' : p.runs > 0 ? 'gold' : 'none';
     if (state.equippedSkin !== currentSkin) {
       currentSkin = state.equippedSkin;
       app.dataset.skin = currentSkin;
@@ -540,11 +574,12 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
       setText(skinsSummary, `Cambiar Michirata · ${SKINS.find(skin => skin.id === currentSkin)!.name}`);
     }
     setText(points, formatNumber(state.points));
-    baseClickReward = pointsPerClick(state);
+    baseClickReward = pointsPerClick(state) * clickMultiplier(p);
     setText(perClick, formatReward(baseClickReward * clickFactor));
-    setText(perSecond, formatNumber(production(state)));
-    renderUpgrade(state, 'click', state.clickLevel);
-    renderUpgrade(state, 'auto', state.autoLevel);
+    productionBeforePenalty = production(state) * productionMultiplier(p);
+    setText(perSecond, formatNumber(penaltyOn ? 0 : productionBeforePenalty));
+    renderUpgrade(state, 'click', state.clickLevel, p);
+    renderUpgrade(state, 'auto', state.autoLevel, p);
     renderCrew(state);
     for (const skin of SKINS) {
       const button = skinButtons.get(skin.id)!;
@@ -560,7 +595,7 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
     }
     updateHeroMotion();
     if (state.clickLevel !== previousClickLevel || state.autoLevel !== previousAutoLevel || state.equippedSkin !== previousSkin)
-      setText(announcement, `${formatNumber(state.points)} puntos. ${formatNumber(pointsPerClick(state))} por clic y ${formatNumber(production(state))} por segundo.`);
+      setText(announcement, `${formatNumber(state.points)} puntos. ${formatNumber(pointsPerClick(state))} por clic y ${formatNumber(production(state) * productionMultiplier(p))} por segundo.`);
     previousClickLevel = state.clickLevel;
     previousAutoLevel = state.autoLevel;
     previousSkin = state.equippedSkin;
@@ -716,10 +751,14 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
     }
   }
 
-  function fatigue(factor: number) {
-    clickFactor = factor;
-    setText(perClick, formatReward(baseClickReward * factor));
-    fatigueNotice.hidden = factor >= 0.95;
+  function fatigue(factor: number, penalty = false, steady = false) {
+    penaltyOn = penalty;
+    clickFactor = penalty ? 0 : factor * (steady ? 1.1 : 1);
+    setText(perClick, formatReward(baseClickReward * clickFactor));
+    setText(perSecond, formatNumber(penalty ? 0 : productionBeforePenalty));
+    fatigueNotice.hidden = factor >= 0.95 && !penalty && !steady;
+    if (penalty) { setText(fatigueNotice, '🚨 Sobrecalentamiento · −1 %/s · producción pausada'); return; }
+    if (steady) { setText(fatigueNotice, '💚 Buen ritmo · clic +10 %'); return; }
     if (!fatigueNotice.hidden) setText(fatigueNotice, `🥵 Clics al ${factor < 0.01 ? '<1' : Math.floor(factor * 100)}% · descansa para recuperar`);
   }
   return { render, feedback, status, celebrate, fatigue };

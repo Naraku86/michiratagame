@@ -1,10 +1,10 @@
 import { dismissOnSwipe } from './swipe.ts';
 import { mountAccount } from './account-ui.ts';
 
-type Player = { id: string; name: string; best: number; rank: number; active?: boolean; suspected?: boolean; reason?: string };
+type Player = { id: string; name: string; best: number; rank: number; active?: boolean; suspected?: boolean; reason?: string; bigotes?: number; record?: number; penalty?: number };
 type Snapshot = { active: number; me: Player; players: Player[] };
 
-export function startCommunity(header: HTMLElement, getPoints: () => number) {
+export function startCommunity(header: HTMLElement, getProgress: () => { points: number; bigotes: number; penalty: number }, onRecord: (record: number, penalty: number) => void = () => {}) {
   const menu = document.createElement('details');
   menu.className = 'community';
   dismissOnSwipe(menu);
@@ -17,7 +17,7 @@ export function startCommunity(header: HTMLElement, getPoints: () => number) {
   const title = document.createElement('h2');
   title.textContent = 'Tablero de Michiratas';
   const note = document.createElement('p');
-  note.textContent = 'Activos en el último minuto · récord de saldo';
+  note.textContent = 'Activos en el último minuto · puntuación: récord + prestigio − penalizaciones';
   const form = document.createElement('form');
   const label = document.createElement('label');
   label.textContent = 'Tu nombre público';
@@ -32,10 +32,10 @@ export function startCommunity(header: HTMLElement, getPoints: () => number) {
   const personal = document.createElement('p');
   const table = document.createElement('table');
   const caption = document.createElement('caption');
-  caption.textContent = 'Top 50 · sospechosos al final';
+  caption.textContent = 'Top 50 · prestigio incluido · sospechosos al final';
   const head = document.createElement('thead');
   const heading = document.createElement('tr');
-  for (const text of ['#', 'Jugador', 'Récord']) {
+  for (const text of ['#', 'Jugador', 'Puntos']) {
     const cell = document.createElement('th'); cell.scope = 'col'; cell.textContent = text; heading.append(cell);
   }
   head.append(heading);
@@ -58,15 +58,16 @@ export function startCommunity(header: HTMLElement, getPoints: () => number) {
       const token = await account?.accessToken();
       const response = await fetch('/api/presence', {
         method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
-        body: JSON.stringify({ points: getPoints(), ...(name === undefined ? {} : { name }) }),
+        body: JSON.stringify({ ...getProgress(), ...(name === undefined ? {} : { name }) }),
         signal: AbortSignal.timeout(8000),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? 'No se pudo conectar.');
       const snapshot = data as Snapshot;
+      if (Number.isFinite(snapshot.me.record) && Number.isFinite(snapshot.me.penalty)) onRecord(snapshot.me.record!, snapshot.me.penalty!);
       summary.title = 'Abrir tablero de jugadores';
       summary.textContent = `👥 ${snapshot.active} ${snapshot.active === 1 ? 'activo' : 'activos'}`;
-      personal.textContent = `Tu puesto: #${snapshot.me.rank} · récord ${numbers.format(snapshot.me.best)} pts${snapshot.me.suspected ? ' · Tramposo · sospecha' : ''}`;
+      personal.textContent = `Tu puesto: #${snapshot.me.rank} · ${numbers.format(snapshot.me.best)} pts · 🎖 ${snapshot.me.bigotes ?? 0} bigotes${snapshot.me.suspected ? ' · Tramposo · sospecha' : ''}`;
       personal.title = snapshot.me.reason ?? '';
       if (!initialized || name !== undefined) { input.value = snapshot.me.name; initialized = true; }
       rows.replaceChildren();
@@ -82,6 +83,10 @@ export function startCommunity(header: HTMLElement, getPoints: () => number) {
             badge.textContent = 'Tramposo · sospecha';
             badge.title = player.reason ?? '';
             cell.append(badge);
+          }
+          if (row.children.length === 1 && player.bigotes) {
+            const prestige = document.createElement('span'); prestige.className = 'community__prestige';
+            prestige.textContent = ` · 🎖 ${player.bigotes}`; cell.append(prestige);
           }
           row.append(cell);
         }

@@ -235,14 +235,14 @@ test('ranking preserves global positions and tied ids beyond both board limits u
   const server = createApp(path, dir, () => time);
   const db = new DatabaseSync(path);
   const tokenFor = (index: number) => index.toString(16).padStart(64, '0');
-  const insert = db.prepare('INSERT INTO players(id, token, name, best, seen, suspected, checked_at) VALUES (?, ?, ?, ?, ?, ?, ?)');
+  const insert = db.prepare('INSERT INTO players(id, token, name, best, ranking_points, seen, suspected, checked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)');
   for (let i = 0; i < 72; i++) {
     const id = `player-${String(i).padStart(3, '0')}`;
-    insert.run(id, createHash('sha256').update(tokenFor(i)).digest('hex'), id, i < 60 ? 100 : 200, time, i < 60 ? 0 : 1, time);
+    insert.run(id, createHash('sha256').update(tokenFor(i)).digest('hex'), id, i < 60 ? 100 : 200, i < 60 ? 100 : 200, time, i < 60 ? 0 : 1, time);
   }
   for (const suspected of [0, 1]) {
-    const plan = db.prepare(`EXPLAIN QUERY PLAN SELECT id, name, best, seen, suspected FROM players WHERE suspected = ? ORDER BY best DESC, id ASC LIMIT ${suspected ? 10 : 50}`).all(suspected);
-    assert.ok(plan.some(row => String(row.detail).includes('players_ranking')), JSON.stringify(plan));
+    const plan = db.prepare(`EXPLAIN QUERY PLAN SELECT id, name, best, seen, suspected FROM players WHERE suspected = ? ORDER BY ranking_points DESC, id ASC LIMIT ${suspected ? 10 : 50}`).all(suspected);
+    assert.ok(plan.some(row => String(row.detail).includes('players_score')), JSON.stringify(plan));
     assert.ok(plan.every(row => !String(row.detail).includes('TEMP B-TREE')), JSON.stringify(plan));
   }
   db.close();
@@ -330,4 +330,28 @@ test('static assets stream unchanged bytes, support HEAD and advertise bounded c
     assert.equal(head.headers.get('content-length'), String(data.length)); assert.equal(await head.text(), '');
     assert.equal((await fetch(base + '/assets')).status, 404);
   } finally { await close(server); await rm(dir, { recursive: true, force: true }); }
+});
+
+test('prestige boosts the board, penalties lower rank, and stale clients cannot undo deductions', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'michi-prestige-board-'));
+  const server = createApp(join(dir, 'test.sqlite'), dir, () => 1_000_000);
+  const base = await listen(server);
+  async function post(body: unknown, cookie = '') {
+    return fetch(base + '/api/presence', {method:'POST',headers:{'Content-Type':'application/json',Origin:base,Cookie:cookie},body:JSON.stringify(body)});
+  }
+  try {
+    const first = await post({points:10000,bigotes:10,penalty:0});
+    const cookie = first.headers.get('set-cookie')!.split(';')[0];
+    const boosted = await first.json();
+    assert.equal(boosted.me.best,11000);assert.equal(boosted.me.record,10000);
+    assert.equal(boosted.me.bigotes,10);
+    await post({points:10500});
+    const penalized = await (await post({points:9900,bigotes:10,penalty:1000},cookie)).json();
+    assert.equal(penalized.me.best,10000);assert.equal(penalized.me.rank,2);
+    const stale = await (await post({points:0,bigotes:0,penalty:0},cookie)).json();
+    assert.equal(stale.me.best,10000);assert.equal(stale.me.penalty,1000);
+    const zero = await (await post({points:0,bigotes:1357,penalty:1e15},cookie)).json();
+    assert.equal(zero.me.best,0);
+    for(const body of [{points:1,bigotes:-1},{points:1,bigotes:1358},{points:1,bigotes:1.5},{points:1,penalty:-1},{points:1,penalty:'2'}])assert.equal((await post(body,cookie)).status,400);
+  }finally{await close(server);await rm(dir,{recursive:true,force:true});}
 });
