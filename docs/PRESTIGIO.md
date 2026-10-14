@@ -190,3 +190,8 @@ La skin pesa más que el prestigio en la primera vuelta. Que conserven las skins
 3. Diálogo de confirmación con `previewPrestige`. Revisar teclado, lector de pantalla y movimiento reducido.
 4. Skins Dorada y Astral cosméticas, más los logros.
 5. Prueba con la comunidad antes de ajustar el divisor o los topes.
+
+
+## Integración del catálogo ampliado
+
+El prototipo y sus 14 pruebas se ejecutaron también con las 24 skins. El logro de colección exige ahora todas las skins comprables; se conservan las que tenga el jugador, sin importar cuántas sean. Las estimaciones originales de recompra de cinco skins corresponden al catálogo histórico, no al ampliado. El modelo continúa siendo un experimento: no se activó prestigio en el juego y el botón actual de reinicio sigue borrando sólo la partida local tras confirmación.

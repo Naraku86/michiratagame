@@ -1,3 +1,5 @@
+import { isPublishableKey } from './auth-key.ts';
+
 // Optional Supabase Auth helper without SDK or UI. It only talks to the documented REST API
 // (/auth/v1/*) with the publishable key, uses PKCE for OAuth, email confirmation and password
 // recovery, and never touches the game save. Without configuration it stays disabled.
@@ -60,9 +62,9 @@ export function setupAuth(env: AuthEnv, deps: { storage: AuthStorage; fetch?: ty
     const url = new URL(rawUrl);
     const local = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
     if (url.protocol !== 'https:' && !(local && url.protocol === 'http:')) throw new Error('VITE_SUPABASE_URL debe usar https.');
-    if (url.pathname !== '/' || url.search || url.hash || url.username) throw new Error('VITE_SUPABASE_URL debe ser sólo el origen.');
+    if (url.pathname !== '/' || url.search || url.hash || url.username || url.password) throw new Error('VITE_SUPABASE_URL debe ser sólo el origen.');
     if (/^sb_secret_/.test(key)) throw new Error('Nunca pongas la clave secreta en el cliente.');
-    if (!/^sb_publishable_[A-Za-z0-9_-]+$/.test(key) && !/^[\w-]+\.[\w-]+\.[\w-]+$/.test(key)) throw new Error('Falta una clave publicable válida.');
+    if (!isPublishableKey(key)) throw new Error('Falta una clave publicable válida.');
     const redirect = new URL(env.VITE_AUTH_REDIRECT_URL?.trim() || '/', deps.origin);
     if (redirect.origin !== new URL(deps.origin).origin) throw new Error('VITE_AUTH_REDIRECT_URL debe estar en el mismo dominio del juego.');
     return { status: 'ready', client: new AuthClient(url.origin, key, redirect.href, deps.storage, deps.fetch ?? fetch.bind(globalThis), deps.now ?? Date.now) };

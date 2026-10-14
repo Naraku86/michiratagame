@@ -119,7 +119,7 @@ LOAD_TOTAL=500 LOAD_CONCURRENCY=5 node --experimental-strip-types tools/load-loc
 
 Estos pasos **requieren tu cuenta** y se hacen en el panel de Cloudflare; no están
 configurados ni se pueden configurar desde el código. Sigue la documentación oficial
-de Cloudflare (los enlaces exactos cambian; busca en `developers.cloudflare.com`):
+de Cloudflare:
 
 1. **Ocultar el origen**: publica el dominio en Cloudflare y activa el proxy (nube
    naranja) para que el tráfico pase por su borde; el origen sólo escucha en
@@ -143,3 +143,12 @@ tanto que castigues a usuarios honestos detrás de una misma IP.
 - No hay captcha obligatorio ni bloqueo permanente de usuarios honestos.
 - No se resetean récords ni se cambia el anticheat del juego (eso vive en `src/`).
 - No se tocan `auth`, `main`, `ui`, `game`, `package.json` ni `README`.
+
+
+## Integración y comprobación posterior
+
+Se añadió una cuota de nuevas identidades (ráfaga 10 por conexión y 100 globales, recuperación continua por minuto), separada de la cuota de jugadores ya conocidos. No frena el progreso local, pero retrasa altas masivas que llenan el tablero. También se limita el tráfico de archivos (600/min por conexión, 6.000/min globales), se entregan por streaming para no cargar cada WebP entero en memoria y los assets usan cache público de una hora. El HTML conserva revalidación para recibir versiones nuevas. Se eliminó el cálculo de puestos por cada fila: hay un índice de clasificación, una consulta del puesto personal y posiciones derivadas de la lista ya ordenada.
+
+Sonda final: 1.000 peticiones locales, 10 concurrentes, 120 aceptadas, 880 limitadas, cero errores; p95 6,8 ms. RSS observado de 89,7 a 176,1 MB y heap de 12,3 a 22,0 MB. El proceso de la sonda contiene cliente y servidor: estas cifras no miden la memoria del backend aislado ni son una garantía de carga distribuida. `tools/load-local.ts` ahora rechaza destinos fuera de loopback.
+
+Fuentes oficiales verificadas para configuración externa: [proteger el origen](https://developers.cloudflare.com/fundamentals/security/protect-your-origin-server/), [defensa DDoS proactiva](https://developers.cloudflare.com/ddos-protection/best-practices/proactive-defense/), [interacción entre WAF y túneles](https://developers.cloudflare.com/waf/feature-interoperability/), [DNSSEC](https://developers.cloudflare.com/dns/dnssec/). El dominio temporal trycloudflare no es una zona propia donde podamos activar DNSSEC/WAF de nuestra cuenta. Queda pendiente dominio definitivo y configuración de esos controles en el panel; no se modificó firewall ni DNS del servidor.

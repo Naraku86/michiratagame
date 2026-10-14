@@ -9,7 +9,7 @@ A project from a community of friends, developed with help from AI. The project'
 ## Features
 
 - Responsive gameplay for phones and PCs, with the score counter and upgrade buttons always visible.
-- Six skins with powers, automated workers, and multipliers every ten levels.
+- Twenty-four skins with powers, automated workers, and multipliers every ten levels.
 - Synthesized sound, particles, and animated stickers, with mute and animation controls. Swipe a reward sticker sideways to dismiss it.
 - Local game saves.
 - Autoclickers are allowed, with progressive click fatigue: short bursts are tolerated, but sustained excess clicks earn less over time. Rest restores efficiency; worker production is unaffected.
@@ -77,11 +77,27 @@ The first report establishes a baseline, including imported saves and existing r
 | --- | --- |
 | `src/` | Economy, UI, audio, saves, community client, and tests |
 | `server/` | HTTP backend, SQLite storage, and integration tests |
-| `public/assets/` | Images for six Michiratas and two animated WebP stickers |
+| `public/assets/` | Images for 24 Michiratas and the original reward animations |
 | `arte/` | Demo screenshot and concept art; the concept does not represent implemented features |
 | `docs/` | Historical context, research, and development plans |
 
-Voting, AI moderation, and accounts with external identity providers are future ideas. Historical documents may describe earlier versions; use this README to run the current version. The game UI and supporting documents are currently in Spanish.
+Voting and AI moderation remain future ideas. Optional accounts are prepared with Supabase; enable them only after configuring the providers, SMTP, and redirects. Prestige has an executable prototype and analysis, but is not active in the game. Historical documents may describe earlier versions; use this README to run the current version. The game UI and supporting documents are currently in Spanish.
+
+## Development tools and roadmap
+
+```bash
+npm run balance             # deterministic economy matrix: 24 skins, 1,296 scenarios
+npm run prestige:simulate   # proposed reset rewards and repeated-run comparisons
+npm run package:itch        # HTML5 ZIP with relative assets and license notices
+node --experimental-strip-types tools/load-local.ts  # bounded local load probe
+npm run audit:local         # reproduces known cheat vectors locally; fixed cases report differently
+```
+
+`npm test` includes the simulation and authentication tests; the build type-checks `src/`, `server/`, and `tools/`. The seven parallel work streams, delivered reports, and remaining work are tracked in [docs/DESARROLLO_PARALELO.md](docs/DESARROLLO_PARALELO.md).
+
+Accounts: copy `.env.example` to `.env`, configure Supabase plus Google/Facebook/email using [the setup checklist](docs/AUTENTICACION.md), then rebuild and restart. `npm start` loads `.env` if present. The public demo has no account keys configured; tests use simulated HTTP responses. Browser keys must be publishable/anon: the build rejects secret or legacy service-role keys before bundling.
+
+The backend limits API traffic, new identity creation, static requests, connections, and body size. Assets stream rather than buffering each image. [The protection report](docs/PROTECCION_SERVIDOR.md) separates these controls from DNSSEC/WAF settings that require a permanent domain and Cloudflare configuration. [The audit queue](docs/COLA_DE_CORRECCIONES.md) tracks remaining cheat vectors; accounts and rate limits do not make client-reported scores authoritative.
 
 ## Contributing
 

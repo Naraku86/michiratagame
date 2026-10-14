@@ -25,8 +25,8 @@ C=(1+nivel clic)×2^floor(nivel/10); P=nivel trabajadoras×2^floor(nivel/10). Ca
 |Locutora / michirata-locutora.webp|1791950524401|11500|1.5|1.6|10|4|2|
 |Mágica / michirata-magica.webp|1791950527454|13000|1.8|1.8|14|7|3|
 
-Sirena, Venadito, Tecladista y Mágica son animados. Las miniaturas se cargan al abrir la colección y se descargan de los elementos al cerrarla; la skin equipada permanece animada. Ningún formato se convirtió.
+Sirena, Venadito, Tecladista y Mágica son animados. Las miniaturas se cargan al abrir la colección y se descargan de los elementos al cerrarla; la skin equipada permanece animada cuando los efectos están activos. Al apagarlos o pedir movimiento reducido, la UI conserva un frame en canvas (también en miniaturas), sin modificar los archivos. Ningún formato se convirtió.
 
 Perfiles: Sumo/Ñi favorecen clic; Queso/Oficinista producción pasiva; Brujita/Calabaza/Mágica combinan ambos; Walkman/Locutora premian cadenas intermedias. Las fórmulas siguen escalando en niveles 16,60,100. Los coeficientes no crecen con el número de skins adquiridas. La fórmula mantiene producción máxima ≤266240/s a nivel100 sin otros modificadores.
 
-No se implementan prestigio, autenticación ni nuevos efectos; se reutilizan los seis efectos ya disponibles.
+Este frente no activa prestigio ni implementa cuentas (la integración de autenticación está documentada por separado); se reutilizan los seis efectos ya disponibles.

@@ -962,3 +962,11 @@ summary:focus-visible,
 
 /* Sticker silhouettes should remain complete rather than fill a cropped square. */
 .hero__image[src$=".webp"], .skin__image[src$=".webp"] { object-fit: contain; }
+
+.hero__still { object-fit: contain; }
+
+.account { margin-top: 0.8rem; border-top: 1px solid var(--line); }
+.account > summary { min-height: 44px; padding: 0.65rem 0; cursor: pointer; }
+.account__controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem; margin: 0.5rem 0; }
+.account button { padding: 0.4rem; font: inherit; font-size: 0.85rem; }
+.account__form { margin: 0.5rem 0; }

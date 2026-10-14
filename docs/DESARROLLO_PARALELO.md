@@ -25,4 +25,18 @@ El análisis de prestigio y los prototipos no autorizan borrar progreso de jugad
 
 ## Estado
 
-Trabajo iniciado en paralelo. Este documento se actualiza con los commits, resultados y pendientes al integrar cada entrega.
+Los siete frentes entregaron sus artefactos y se integraron en `main`:
+
+| Frente | Entregado | Estado práctico |
+| --- | --- | --- |
+| Economía | `tools/balance.ts`, tests, CSV/JSON y `ECONOMIA_SIMULADA.md` | 24 skins, 1.296 escenarios y 3.888 corridas reproducibles; sin depender de IA para calcular |
+| Prestigio | `tools/prestige.ts`, 14 tests y `PRESTIGIO.md` | Prototipo de bigotes/super mejoras/skins cosméticas; no activa resets en partidas reales |
+| Autenticación | Validación remota, PKCE, vínculo de cuentas, UI y tests | Integración conectada pero desactivada sin claves; checklist de Google/Meta/correo y SMTP |
+| Auditoría | `AUDITORIA_TRAMPAS.md`, PoC local, evidencia antes/después | Cola de correcciones, incluidos puntos reportados por el cliente y cuentas desechables |
+| Steam/itch.io | `STEAM_ITCHIO.md` y `tools/package-itch.ts` | ZIP HTML5 de 24 skins, rutas relativas y licencias; nada publicado en tiendas |
+| Nuevas skins | 18 WebP, fórmulas y `NUEVAS_MICHIRATAS.md` | Comprables y equipables, guardados conservados y movimiento reducido |
+| Protección | Límites API/global/altas/archivos, streaming, índice y carga local | 1.000 solicitudes: 120 aceptadas, 880 limitadas; DNS/WAF fuera del código pendientes |
+
+Validación integrada: 112 pruebas, build de tipos incluyendo tools, navegador en cinco tamaños, compra/equipado/recarga de las 18 skins y cuentas con HTTP simulado. La configuración real de proveedores, el iframe de itch, Windows/Steamworks y la percepción de diversión no se probaron.
+
+Siguiente trabajo priorizado en [COLA_DE_CORRECCIONES.md](COLA_DE_CORRECCIONES.md). El balance conserva las seis skins anteriores; las nuevas tienen coeficientes explícitos para próximos ajustes. La simulación identifica una ventaja activa de Futbolista, no justifica una modificación silenciosa de partidas.

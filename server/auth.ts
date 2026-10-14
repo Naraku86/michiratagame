@@ -1,3 +1,4 @@
+import { isPublishableKey } from '../src/auth-key.ts';
 import type { DatabaseSync } from 'node:sqlite';
 
 // Optional account layer. Disabled unless explicitly configured; the game, saves and the
@@ -37,7 +38,7 @@ export function loadAuthConfig(env: Record<string, string | undefined>): AuthCon
   // Elevated keys bypass Row Level Security and are never needed to validate a user session.
   if (/^sb_secret_/.test(key))
     throw new AuthConfigError('Usa la clave publicable (o anon heredada), nunca la clave secreta/service_role.');
-  if (!/^sb_publishable_[A-Za-z0-9_-]+$/.test(key) && !TOKEN.test(key))
+  if (!isPublishableKey(key))
     throw new AuthConfigError('SUPABASE_PUBLISHABLE_KEY no tiene el formato de una clave publicable o anon.');
   const timeoutMs = env.MICHI_AUTH_TIMEOUT_MS === undefined ? 5000 : Number(env.MICHI_AUTH_TIMEOUT_MS);
   if (!Number.isInteger(timeoutMs) || timeoutMs < 500 || timeoutMs > 15_000) throw new AuthConfigError('MICHI_AUTH_TIMEOUT_MS debe estar entre 500 y 15000.');
@@ -103,6 +104,9 @@ export function createAuthLinks(db: DatabaseSync, now = Date.now) {
   const byPlayer = db.prepare('SELECT auth_user_id FROM auth_links WHERE player_id = ?');
   const insert = db.prepare('INSERT INTO auth_links(auth_user_id, player_id, provider, linked_at) VALUES (?, ?, ?, ?)');
   return {
+    ownerFor(playerId: string): string | undefined {
+      return byPlayer.get(playerId)?.auth_user_id as string | undefined;
+    },
     playerFor(userId: string): string | undefined {
       return byUser.get(userId.toLowerCase())?.player_id as string | undefined;
     },

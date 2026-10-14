@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, mkdir, readFile, readdir, rm, stat } from 'node:fs/promises';
+import { copyFile, mkdtemp, mkdir, readFile, readdir, rm, stat } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { build } from 'vite';
@@ -22,6 +22,8 @@ try {
       },
     }],
   });
+  await copyFile(resolve('LICENSE'), join(files, 'LICENSE'));
+  await copyFile(resolve('node_modules/vite/LICENSE.md'), join(files, 'VITE_LICENSE.md'));
   const html = await readFile(join(files, 'index.html'), 'utf8');
   assert(!/(?:src|href)=["']\//.test(html), 'HTML con rutas absolutas');
   const assets = await readdir(join(files, 'assets'));
@@ -38,8 +40,8 @@ try {
   execFileSync('unzip', ['-tq', archive]);
   const entries = execFileSync('unzip', ['-Z1', archive], { encoding: 'utf8' }).split('\n');
   assert(entries.includes('index.html'), 'index.html debe estar en la raíz');
+  assert(entries.includes('LICENSE') && entries.includes('VITE_LICENSE.md'), 'El paquete debe conservar las licencias');
   assert(!entries.some(entry => /(?:^|\/)(?:node_modules|data|server)(?:\/|$)/.test(entry)), 'ZIP contiene archivos privados');
-  const { copyFile } = await import('node:fs/promises');
   await copyFile(archive, output);
   console.log(`ZIP verificado: ${output} (${(await stat(output)).size} bytes). El tablero requiere otro despliegue; el juego local funciona sin API.`);
 } finally {

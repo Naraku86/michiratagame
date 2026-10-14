@@ -1,6 +1,9 @@
+import { loadEnvFile } from 'node:process';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createApp } from './app.ts';
+
+try { loadEnvFile(); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
 
 const directory = resolve(process.env.MICHI_DATA_DIR ?? 'data');
 mkdirSync(directory, { recursive: true, mode: 0o700 });

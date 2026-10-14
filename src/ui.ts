@@ -152,6 +152,7 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
   effectsButton.addEventListener('click', () => {
     effectsOn = !effectsOn;
     updateEffects();
+    updateHeroMotion();
     if (!effectsOn) {
       heroAnimation?.cancel();
       heroAnimation = null;
@@ -198,7 +199,25 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
   heroImage.height = 1536;
   heroImage.draggable = false;
   heroImage.decoding = 'async';
-  heroButton.append(heroImage);
+  const heroStill = el('canvas', 'hero__image hero__still');
+  heroStill.setAttribute('aria-hidden', 'true');
+  heroStill.hidden = true;
+  heroButton.append(heroImage, heroStill);
+  let frozenSource = '';
+  const animatedSkins = new Set<Skin>(['sirena', 'venadito', 'tecladista', 'magica']);
+  function updateHeroMotion() {
+    updatePreviewMotion();
+    const freeze = animatedSkins.has(currentSkin ?? 'original') && (!effectsOn || prefersReducedMotion());
+    if (!freeze) { heroStill.hidden = true; heroImage.hidden = false; frozenSource = ''; return; }
+    if (!heroImage.complete || !heroImage.naturalWidth) return;
+    if (frozenSource !== heroImage.src) {
+      heroStill.width = heroImage.naturalWidth; heroStill.height = heroImage.naturalHeight;
+      heroStill.getContext('2d')?.drawImage(heroImage, 0, 0);
+      frozenSource = heroImage.src;
+    }
+    heroStill.hidden = false; heroImage.hidden = true;
+  }
+  heroImage.addEventListener('load', updateHeroMotion);
   const heroFx = el('div', 'hero__fx');
   heroFx.setAttribute('aria-hidden', 'true');
   // Aviso fijo para movimiento reducido o efectos apagados.
@@ -275,6 +294,7 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
       heroAnimation?.cancel();
       heroFx.replaceChildren();
     }
+    updateHeroMotion();
   });
 
   // Posición del último toque, en % del área de la Michirata.
@@ -374,6 +394,7 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
     const image = el('img', 'skin__image');
     image.dataset.src = skin.image;
     image.loading = 'lazy';
+    if (animatedSkins.has(skin.id)) image.addEventListener('load', updatePreviewMotion);
     image.alt = '';
     image.width = 96;
     image.height = 96;
@@ -399,6 +420,20 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
   }
   skinsTitle.classList.add('sr-only');
   skins.append(skinsSummary, skinsTitle, skinsList);
+  function updatePreviewMotion() {
+    for (const image of Array.from(skinsList.querySelectorAll<HTMLImageElement>('img'))) {
+      const src = image.dataset.src ?? '';
+      if (!['sirena', 'venadito', 'tecladista', 'magica'].some(id => src.endsWith(`michirata-${id}.webp`)) || !image.getAttribute('src')) continue;
+      if (effectsOn && !prefersReducedMotion()) {
+        if (image.src.startsWith('data:')) image.src = src;
+      } else if (!image.src.startsWith('data:') && image.complete && image.naturalWidth) {
+        const still = document.createElement('canvas');
+        still.width = image.naturalWidth; still.height = image.naturalHeight;
+        still.getContext('2d')?.drawImage(image, 0, 0);
+        image.src = still.toDataURL();
+      }
+    }
+  }
   skins.addEventListener('toggle', () => {
     for (const image of Array.from(skinsList.querySelectorAll<HTMLImageElement>('img'))) {
       if (skins.open) image.src = image.dataset.src!;
@@ -518,8 +553,9 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
       button.setAttribute('aria-disabled', String(equipped || (!owned && state.points < skin.price)));
       button.closest('article')!.classList.toggle('skin--equipped', equipped);
       setText(skinStates.get(skin.id)!, equipped ? '★ Poder activo' : owned ? 'En tu colección' : 'Por desbloquear');
-      if (equipped && !heroImage.src.endsWith(skin.image)) heroImage.src = skin.image;
+      if (equipped && heroImage.src !== new URL(skin.image, document.baseURI).href) heroImage.src = skin.image;
     }
+    updateHeroMotion();
     if (state.clickLevel !== previousClickLevel || state.autoLevel !== previousAutoLevel || state.equippedSkin !== previousSkin)
       setText(announcement, `${formatNumber(state.points)} puntos. ${formatNumber(pointsPerClick(state))} por clic y ${formatNumber(production(state))} por segundo.`);
     previousClickLevel = state.clickLevel;

@@ -1,0 +1,115 @@
+{
+  "node": "v24.18.0",
+  "scoreRate": 10000000,
+  "scoreBurst": 40000000,
+  "results": [
+    {
+      "id": "H1",
+      "title": "El primer reporte de una identidad nueva acepta el máximo (1e12) sin marca",
+      "reproduced": true,
+      "evidence": {
+        "status": 200,
+        "best": 1000000000000,
+        "rank": 1,
+        "suspected": false
+      }
+    },
+    {
+      "id": "H2",
+      "title": "Identidades desechables (sin cookie) desplazan a un jugador honesto fuera del top 50",
+      "reproduced": false,
+      "evidence": null,
+      "error": "H2 ya no se reproduce: la jugadora honesta sigue en el top 50\n\ntrue !== false\n"
+    },
+    {
+      "id": "H3",
+      "title": "Una marca \"Tramposo · sospecha\" se evade borrando la cookie, conservando el nombre",
+      "reproduced": true,
+      "evidence": {
+        "flaggedSuspected": true,
+        "newIdentity": true,
+        "freshName": "Evasora",
+        "freshSuspected": false,
+        "freshBest": 1000000000000
+      }
+    },
+    {
+      "id": "H4",
+      "title": "El margen crece sin tope con el tiempo inactivo: esperar ~28 h permite saltar de 0 a 1e12",
+      "reproduced": true,
+      "evidence": {
+        "idleSeconds": 99996,
+        "jumpedTo": 1000000000000,
+        "suspected": false
+      }
+    },
+    {
+      "id": "H5",
+      "title": "El límite por IP confía en cf-connecting-ip del cliente: rotar la cabecera evita el 429",
+      "reproduced": true,
+      "evidence": {
+        "rotated": {
+          "requests": 130,
+          "got429": 0
+        },
+        "sameHeader": {
+          "requests": 121,
+          "last": 429
+        }
+      }
+    },
+    {
+      "id": "H7",
+      "title": "Cada petición sin cookie crea una fila permanente en SQLite (crecimiento sin límite)",
+      "reproduced": true,
+      "evidence": {
+        "requests": 100,
+        "newRows": 100,
+        "totalRows": 115
+      }
+    },
+    {
+      "id": "H8",
+      "title": "Retrasar el reloj del dispositivo 1 s y recargar borra la fatiga guardada",
+      "reproduced": false,
+      "evidence": null,
+      "error": "H8 ya no se reproduce: la recarga con reloj atrasado conserva la fatiga\n+ actual - expected\n\n+ 0.003708973193025417\n- 1\n"
+    },
+    {
+      "id": "H9",
+      "title": "Entradas mal formadas responden 500 en vez de 4xx (Origin: null, ruta %E0)",
+      "reproduced": false,
+      "evidence": null,
+      "error": "H9 ya no se reproduce: Origin null → 403\n\n403 !== 500\n"
+    },
+    {
+      "id": "N1",
+      "title": "Control: peticiones paralelas con la misma cookie no reutilizan el crédito de ráfaga",
+      "reproduced": true,
+      "evidence": {
+        "statuses": [
+          200,
+          200,
+          200,
+          200
+        ],
+        "suspected": true,
+        "note": "Node procesa find→update sin await intermedio; no hay carrera en un solo proceso"
+      }
+    },
+    {
+      "id": "H10",
+      "title": "El puesto se calcula con un SCAN completo hasta 61 veces por petición y bloquea el event loop",
+      "reproduced": false,
+      "evidence": null,
+      "error": "H10 ya no se reproduce: plan MULTI-INDEX OR | INDEX 1 | SEARCH players USING COVERING INDEX players_ranking (suspected<?) | INDEX 2 | SEARCH players USING COVERING INDEX players_ranking (suspected=?)"
+    },
+    {
+      "id": "H6",
+      "title": "Llenar el mapa de límites con 10 000 IPs falsas bloquea la API con 503 para siempre, incluso a IPs conocidas",
+      "reproduced": false,
+      "evidence": null,
+      "error": "H6 ya no se reproduce: visitante nuevo recibió 429\n\n429 !== 503\n"
+    }
+  ]
+}

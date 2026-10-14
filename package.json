@@ -6,9 +6,13 @@
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "build": "tsc --noEmit && vite build",
-    "test": "node --experimental-strip-types --test src/*.test.ts server/*.test.ts",
+    "test": "node --experimental-strip-types --test src/*.test.ts server/*.test.ts tools/*.test.ts",
     "preview": "vite preview --host 0.0.0.0",
-    "start": "node --experimental-strip-types server/start.ts"
+    "start": "node --experimental-strip-types server/start.ts",
+    "balance": "node --experimental-strip-types tools/balance.ts",
+    "package:itch": "node --experimental-strip-types tools/package-itch.ts",
+    "prestige:simulate": "node --experimental-strip-types tools/prestige.ts",
+    "audit:local": "node --experimental-strip-types tools/audit-cheats.ts"
   },
   "devDependencies": {
     "typescript": "~5.9.0",

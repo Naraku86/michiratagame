@@ -53,3 +53,8 @@ Se ejecutó también el mismo script contra `src` de la rama de skins con24 entr
 4. Repetir el margen de ranking al añadir cada poder. Este análisis uniforme no cubre mezclas de niveles, ráfagas y alternancia de skins, prestigio futuro, ni un cliente manipulado. No usarlo como detector definitivo.
 
 No cambia economía, progreso guardado ni UI. No mide diversión/retención ni hace una búsqueda global de la mejor estrategia; mide consecuencias reproducibles de las funciones actuales.
+
+
+## Entrega integrada: catálogo de 24
+
+Se regeneraron los artefactos con `npm run balance`: 24 skins, 1.296 escenarios y 3.888 corridas en 10,74 s en este servidor; cero márgenes negativos en la matriz. CSV y JSON ya corresponden al catálogo ampliado. `npm test` incluye las pruebas del simulador. Los coeficientes de las 18 skins nuevas están en `NEW_SKIN_POWERS`, y los perfiles/precios en `docs/NUEVAS_MICHIRATAS.md`; sus descripciones visibles se simplificaron para no llenar la UI con fórmulas. Los datos completos permanecen disponibles en la documentación y artefactos. La Futbolista conserva una ventaja significativa en juego activo: queda un candidato explícito para el siguiente ajuste, no un nerf no comunicado.

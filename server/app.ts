@@ -1,7 +1,10 @@
+import { bearerToken, createAuthLinks, loadAuthConfig, validateSession, sessionStatus, type AuthConfig, type AuthUser } from './auth.ts';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
 import { randomBytes, createHash, randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
+import { stat } from 'node:fs/promises';
+import { createReadStream } from 'node:fs';
+import { pipeline } from 'node:stream/promises';
 import { resolve, extname, sep } from 'node:path';
 import { isIP } from 'node:net';
 
@@ -25,6 +28,10 @@ export interface AppLimits {
   rateWindowMs?: number;
   rateMaxClients?: number;
   maxBodyBytes?: number;
+  newPlayerPerClient?: number;
+  newPlayerGlobal?: number;
+  staticPerClient?: number;
+  staticGlobal?: number;
 }
 
 const LOOPBACK_IPS = new Set(['127.0.0.1', '::1', '::ffff:127.0.0.1']);
@@ -172,6 +179,8 @@ export function createApp(
   distPath: string,
   now = Date.now,
   limits: AppLimits = {},
+  authConfig: AuthConfig = loadAuthConfig(process.env),
+  authFetcher: typeof fetch = fetch,
 ) {
   const rateLimitPerClient = limits.rateLimitPerClient ?? DEFAULT_RATE_LIMIT;
   const rateLimitGlobal = limits.rateLimitGlobal ?? DEFAULT_RATE_LIMIT_GLOBAL;
@@ -198,6 +207,8 @@ export function createApp(
   ]) if (!columns.has(column)) db.exec(`ALTER TABLE players ADD COLUMN ${column} ${definition}`);
   db.exec('CREATE INDEX IF NOT EXISTS players_ranking ON players(suspected, best DESC, id ASC)');
   const find = db.prepare('SELECT * FROM players WHERE token = ?');
+  const findById = db.prepare('SELECT * FROM players WHERE id = ?');
+  const authLinks = createAuthLinks(db, now);
   const insert = db.prepare('INSERT INTO players(id, token, name) VALUES (?, ?, ?)');
   const update = db.prepare('UPDATE players SET name = ?, best = MAX(best, ?), seen = ?, suspected = ?, checked_at = ?, score_credit = ? WHERE id = ?');
   const count = db.prepare('SELECT COUNT(*) AS count FROM players WHERE seen > ?');
@@ -206,6 +217,8 @@ export function createApp(
   const normalCount = db.prepare('SELECT COUNT(*) AS count FROM players WHERE suspected = 0');
   const rank = db.prepare('SELECT COUNT(*) + 1 AS rank FROM players WHERE suspected < ? OR (suspected = ? AND (best > ? OR (best = ? AND id < ?)))');
   const rateLimiter = new RateLimiter(rateLimitPerClient, rateLimitGlobal, rateWindowMs, rateMaxClients);
+  const registrationLimiter = new RateLimiter(limits.newPlayerPerClient ?? 10, limits.newPlayerGlobal ?? 100, rateWindowMs, rateMaxClients);
+  const staticLimiter = new RateLimiter(limits.staticPerClient ?? 600, limits.staticGlobal ?? 6000, rateWindowMs, rateMaxClients);
   const dist = resolve(distPath);
 
   function json(res: ServerResponse, status: number, data: unknown) {
@@ -220,7 +233,7 @@ export function createApp(
     };
   }
 
-  function snapshot(player: any) {
+  function snapshot(player: any, user?: AuthUser) {
     const cutoff = now() - ACTIVE_MS;
     const regularRows = top.all();
     const suspectedRows = suspects.all();
@@ -228,7 +241,7 @@ export function createApp(
     const personalRank = Number(rank.get(player.suspected, player.suspected, player.best, player.best, player.id)!.rank);
     return {
       active: Number(count.get(cutoff)!.count),
-      me: publicPlayer(player, personalRank),
+      me: { ...publicPlayer(player, personalRank), account: user ? { id: user.id, email: user.email } : null },
       players: [
         ...regularRows.map((row, index) => ({ ...publicPlayer(row, index + 1), active: Number(row.seen) > cutoff })),
         ...suspectedRows.map((row, index) => ({ ...publicPlayer(row, regularTotal + index + 1), active: Number(row.seen) > cutoff })),
@@ -251,6 +264,7 @@ export function createApp(
         const time = now();
         const decision = rateLimiter.allow(ip, time);
         if (!decision.ok) {
+          res.setHeader('Retry-After', String(Math.ceil(rateWindowMs / 1000)));
           json(res, decision.status, { error: decision.message, retryAfter: Math.ceil(rateWindowMs / 1000) });
           return;
         }
@@ -312,10 +326,21 @@ export function createApp(
           json(res, 400, { error: 'Usa un nombre de 1 a 24 letras, números o espacios.' });
           return;
         }
+        let user: AuthUser | undefined;
+        if (req.headers.authorization !== undefined) {
+          const result = await validateSession(authConfig, bearerToken(req.headers.authorization), authFetcher);
+          if (!result.ok) { json(res, sessionStatus(result.reason), { error: result.reason === 'unavailable' ? 'El servicio de cuentas no responde. Tu partida sigue guardada.' : 'Entra de nuevo con una cuenta válida y confirmada.' }); return; }
+          user = result.user;
+        }
         const cookie = /(?:^|;\s*)michi_player=([a-f0-9]{64})(?:;|$)/.exec(req.headers.cookie ?? '')?.[1];
         const hash = (token: string) => createHash('sha256').update(token).digest('hex');
-        let player = cookie ? find.get(hash(cookie)) : undefined;
+        const accountPlayer = user ? authLinks.playerFor(user.id) : undefined;
+        let player = accountPlayer ? findById.get(accountPlayer) : cookie ? find.get(hash(cookie)) : undefined;
+        const owner = player ? authLinks.ownerFor(String(player.id)) : undefined;
+        if (owner && owner !== user?.id) player = undefined;
         if (!player) {
+          const registration = registrationLimiter.allow(ip, time);
+          if (!registration.ok) { json(res, registration.status, { error: 'Demasiados jugadores nuevos desde esta conexión. Espera un minuto; puedes seguir jugando.' }); return; }
           const token = randomBytes(32).toString('hex');
           const id = randomUUID();
           insert.run(id, hash(token), `Invitado ${id.slice(0, 4)}`);
@@ -323,6 +348,11 @@ export function createApp(
           const secure = proxiedHttps || req.headers.origin?.startsWith('https:');
           res.setHeader('Set-Cookie', `michi_player=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=31536000${secure ? '; Secure' : ''}`);
           player = find.get(hash(token))!;
+        }
+        if (user && !accountPlayer) {
+          const link = authLinks.link(user, String(player.id));
+          if (link.status === 'conflict') { json(res, 409, { error: 'Este jugador ya pertenece a otra cuenta.' }); return; }
+          player = findById.get(link.playerId)!;
         }
         // shortcut: scores are client-reported, move game simulation to server for competitive play.
         const candidate = Math.floor(body.points);
@@ -334,10 +364,12 @@ export function createApp(
         const credit = Number(player.checked_at) > 0 ? Math.min(SCORE_BURST, Math.max(0, allowance - delta)) : SCORE_BURST;
         update.run(body.name === undefined ? player.name : body.name.trim(), candidate, time, suspected ? 1 : 0, time, credit, player.id);
         player = find.get(String(player.token))!;
-        json(res, 200, snapshot(player));
+        json(res, 200, snapshot(player, user));
         return;
       }
 
+      const staticDecision = staticLimiter.allow(resolveClientIp(req), now());
+      if (!staticDecision.ok) { res.setHeader('Retry-After', '60'); json(res, staticDecision.status, { error: 'Demasiadas solicitudes de archivos.' }); return; }
       if (req.method !== 'GET' && req.method !== 'HEAD') {
         res.writeHead(405);
         res.end();
@@ -357,10 +389,12 @@ export function createApp(
         res.end();
         return;
       }
-      const data = await readFile(path);
+      const file = await stat(path);
+      if (!file.isFile()) { res.writeHead(404); res.end(); return; }
       const types: Record<string, string> = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.jpg': 'image/jpeg', '.png': 'image/png', '.webp': 'image/webp', '.svg': 'image/svg+xml' };
-      res.writeHead(200, { 'Content-Type': types[extname(path)] ?? 'application/octet-stream', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-cache' });
-      res.end(req.method === 'HEAD' ? undefined : data);
+      res.writeHead(200, { 'Content-Length': file.size, 'Content-Type': types[extname(path)] ?? 'application/octet-stream', 'X-Content-Type-Options': 'nosniff', 'Cache-Control': url.pathname.startsWith('/assets/') ? 'public, max-age=3600' : 'no-cache' });
+      if (req.method === 'HEAD') res.end();
+      else await pipeline(createReadStream(path), res);
     } catch (error: any) {
       if (res.headersSent) {
         res.end();

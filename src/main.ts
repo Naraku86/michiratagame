@@ -1,10 +1,12 @@
 import './style.css';
-import { advance, buy, buySkin, equipSkin, tap, initialState, pointsPerClick, milestoneMultiplier, SKINS, type Upgrade } from './game.ts';
+import { advance, buy, buySkin, equipSkin, tap, initialState, pointsPerClick, milestoneMultiplier, SKINS, type Upgrade, type Skin, type TapEffect } from './game.ts';
 import { load, save, type StorageLike } from './storage.ts';
 import { createUI } from './ui.ts';
 import { createSound } from './sound.ts';
 import { startCommunity } from './community.ts';
 import { efficiency, loadFatigue, recordTap, saveFatigue, settleFatigue } from './fatigue.ts';
+
+const pitches: Partial<Record<Skin, number>> = { original: 1, football: 0.95, robot: 1.4, godin: 0.8, jester: 1.15, magnate: 1.05 };
 
 // Access itself can throw when browser storage is disabled.
 let storage: StorageLike;
@@ -18,6 +20,9 @@ let state = loaded.state ?? initialState();
 let communityBest = state.points;
 let fatigue = loadFatigue(storage, Date.now());
 let lastFeedback = -Infinity;
+let feedbackPoints = 0;
+let feedbackEffect: TapEffect = 'none';
+function clearFeedback() { feedbackPoints = 0; feedbackEffect = 'none'; }
 let writable = loaded.writable;
 let dirty = false;
 let chain = 0;
@@ -30,12 +35,14 @@ const ui = createUI(document.querySelector<HTMLElement>('#app')!, {
     fatigue = recordTap(fatigue, Date.now());
     const result = tap(state, chain, Math.random(), efficiency(fatigue));
     state = result.state; communityBest = Math.max(communityBest, state.points); dirty = true;
-    const pitch = { original: 1, football: 0.95, robot: 1.4, godin: 0.8, jester: 1.15, magnate: 1.05 }[state.equippedSkin];
+    const pitch = pitches[state.equippedSkin] ?? 1;
     // Limit audiovisual work during autoclicking, without dropping rewarded taps.
+    feedbackPoints += result.amount;
+    if (result.effect !== 'none') feedbackEffect = result.effect;
     const showFeedback = now - lastFeedback >= 80;
     if (showFeedback) { sound.play(pitch); lastFeedback = now; }
     ui.render(state); ui.fatigue(efficiency(fatigue));
-    if (showFeedback) ui.feedback(result.amount, result.effect, chain);
+    if (showFeedback) { ui.feedback(feedbackPoints, feedbackEffect, chain); clearFeedback(); }
   },
   soundEnabled: sound.enabled,
   toggleSound: () => sound.toggle(),
@@ -57,7 +64,7 @@ const ui = createUI(document.querySelector<HTMLElement>('#app')!, {
     const unlocked = skin !== 'original' && !state.ownedSkins.includes(skin);
     const next = unlocked ? buySkin(state, skin) : equipSkin(state, skin);
     if (next === state) return;
-    chain = 0; lastTap = -Infinity;
+    chain = 0; lastTap = -Infinity; clearFeedback();
     state = next;
     dirty = true; ui.render(state); persist();
     if (unlocked) {
@@ -68,6 +75,7 @@ const ui = createUI(document.querySelector<HTMLElement>('#app')!, {
   },
   reset: () => {
     if (!window.confirm('¿Borrar el progreso de este dispositivo y empezar de cero?')) return;
+    clearFeedback();
     state = initialState(); writable = true; dirty = true; last = performance.now(); chain = 0; lastTap = -Infinity;
     ui.render(state); persist();
   },
@@ -96,5 +104,5 @@ setInterval(() => {
   last = now;
 }, 100);
 setInterval(persist, 1000);
-document.addEventListener('visibilitychange', () => { persist(); last = performance.now(); chain = 0; lastTap = -Infinity; });
+document.addEventListener('visibilitychange', () => { persist(); last = performance.now(); chain = 0; lastTap = -Infinity; clearFeedback(); });
 window.addEventListener('pagehide', persist);

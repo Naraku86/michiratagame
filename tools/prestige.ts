@@ -25,7 +25,7 @@ export const ACHIEVEMENTS = {
   'primera-vuelta': 'Primera vuelta: reinicia con prestigio una vez. Desbloquea skin cosmética Dorada.',
   'vuelta-completa': 'Vuelta completa: reinicia con clic y cuadrilla en nivel 100. Desbloquea skin cosmética Astral.',
   'tercera-vuelta': 'Tercera vuelta: tres reinicios con prestigio.',
-  'coleccion-heredada': 'Colección heredada: reinicia con las cinco skins de pago compradas.',
+  'coleccion-heredada': 'Colección heredada: reinicia con todas las skins comprables.',
   'sindicato-total': 'Sindicato total: todas las super mejoras al máximo.',
 } as const;
 export type AchievementId = keyof typeof ACHIEVEMENTS;

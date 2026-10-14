@@ -11,3 +11,4 @@ data/
 .codewhale/
 .claude/
 .DS_Store
+!/.env.example

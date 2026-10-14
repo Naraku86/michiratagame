@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -31,6 +32,10 @@ async function startEphemeral(): Promise<{ base: string; cleanup: () => Promise<
 }
 
 const target = process.env.LOAD_URL ?? process.argv[2];
+if (target) {
+  const url = new URL(target);
+  assert(['127.0.0.1', 'localhost', '[::1]'].includes(url.hostname) && url.protocol === 'http:' && !url.username && !url.password && url.pathname === '/' && !url.search && !url.hash, 'La sonda sólo admite servidores HTTP de loopback, nunca dominios públicos.');
+}
 const ephemeral = target ? null : await startEphemeral();
 const base = target ?? ephemeral!.base;
 

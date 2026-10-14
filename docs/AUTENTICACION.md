@@ -1,23 +1,23 @@
 # Autenticación (Google, Facebook y correo)
 
-Estado: 13 de octubre de 2026. **Propuesta preparada, no activada.** La decisión Supabase frente a servidor propio sigue pendiente; esta rama prepara la ruta Supabase como opción recomendada. Nada de esto se ha probado contra un proyecto Supabase real ni contra Google o Meta: **no está verificado que Google o Facebook funcionen de extremo a extremo**. Sin configuración, el juego, el guardado local, el modo offline y el tablero anónimo funcionan exactamente igual que antes.
+Estado: 13 de octubre de 2026. **Integración conectada, desactivada sin configuración.** La decisión Supabase frente a servidor propio sigue pendiente; esta rama prepara la ruta Supabase como opción recomendada. Nada de esto se ha probado contra un proyecto Supabase real ni contra Google o Meta: **no está verificado que Google o Facebook funcionen de extremo a extremo**. Sin configuración, el juego, el guardado local, el modo offline y el tablero anónimo funcionan exactamente igual que antes.
 
-## Qué hay en la rama
+## Qué incluye la integración
 
 | Archivo | Qué hace |
 | --- | --- |
 | `server/auth.ts` | Lee la configuración (`MICHI_AUTH_PROVIDER`, `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`), valida sesiones preguntando a Supabase `GET /auth/v1/user`, y enlaza jugador anónimo → cuenta en una tabla propia `auth_links`. |
 | `server/auth.test.ts` | 13 pruebas con HTTP simulado (servidor y cliente). Ninguna toca Supabase, Google, Meta ni el dominio público. |
 | `src/auth.ts` | Ayudante de navegador sin interfaz y **sin SDK**: OAuth con PKCE, registro, confirmación, inicio de sesión, recuperación y cambio de contraseña, renovación de tokens y cierre de sesión. |
-| `.env.example` | Variables sin secretos. `.gitignore` ignora `.env.*`, por eso se añadió con `git add -f`; el coordinador puede añadir `!.env.example` al `.gitignore`. |
+| `.env.example` | Variables sin secretos. `.gitignore` excluye `.env` pero conserva explícitamente `.env.example`. |
 
-No se tocaron `server/app.ts`, `src/main.ts`, `src/ui.ts`, `src/community.ts`, `src/storage.ts` ni `package.json`. La conexión con la interfaz y las rutas HTTP queda para el coordinador cuando se tome la decisión.
+La integración usa `POST /api/presence` con Bearer y la UI `src/account-ui.ts` dentro del tablero. No se añadió un endpoint separado `/api/auth/link`. Los módulos se prepararon en una rama independiente y luego se conectaron; el checklist externo sigue pendiente.
 
 **No se necesita el SDK `@supabase/supabase-js`.** Las llamadas son pocas y documentadas; el ayudante usa `fetch` y WebCrypto. Si en el futuro se prefiere el SDK (por ejemplo, para sincronizar sesiones entre pestañas), la dependencia sería `@supabase/supabase-js`, y debe añadirla el coordinador; esta rama no edita `package.json`.
 
 ## Decisiones de seguridad
 
-- **El servidor nunca confía en el contenido del token.** No decodifica ni verifica JWT localmente: cada token se envía a `GET {SUPABASE_URL}/auth/v1/user` con cabeceras `apikey: <clave publicable>` y `Authorization: Bearer <token>`. Así una sesión cerrada (`/logout`) deja de valer aunque el JWT no haya caducado (el cliente oficial trata ese caso con el código `session_not_found`). Costo: una petición a Supabase por validación; si hace falta, el coordinador puede validar sólo al enlazar y luego usar la cookie propia.
+- **El servidor nunca confía en el contenido del token.** No decodifica ni verifica JWT localmente: cada token se envía a `GET {SUPABASE_URL}/auth/v1/user` con cabeceras `apikey: <clave publicable>` y `Authorization: Bearer <token>`. Esto identifica al usuario consultando al proveedor, pero no promete revocación instantánea: [Supabase documenta que los access tokens emitidos pueden seguir válidos hasta expirar](https://supabase.com/docs/guides/auth/signout). Nuestro botón elimina la sesión local y revoca la renovación; una copia previa del token debe considerarse válida hasta su caducidad si el proveedor todavía la acepta. Costo: una petición a Supabase por validación; si hace falta, el coordinador puede validar sólo al enlazar y luego usar la cookie propia.
 - **Falla cerrado.** Con `MICHI_AUTH_PROVIDER=supabase` y una URL que no sea https, con ruta, con credenciales, sin clave, o con una clave `sb_secret_…`, `loadAuthConfig` lanza error y el servidor no debe arrancar. Al validar: tiempo agotado (5 s por defecto), red caída, 429, 5xx, respuesta no JSON, mayor de 64 KB o sin `id` UUID ⇒ **no autenticado** (`unavailable`, 503). 401/403 ⇒ `invalid`. Usuarios anónimos de Supabase ⇒ rechazados. Cuentas de correo sin `email_confirmed_at` ⇒ `unverified`. Las redirecciones HTTP se rechazan (`redirect: 'error'`).
 - **Sin claves elevadas.** Ni servidor ni cliente usan `service_role`/`sb_secret_…`; no hacen falta para validar sesiones. La clave heredada `anon` también se acepta, pero no se puede distinguir de una `service_role` heredada sin decodificarla: **usa la nueva `sb_publishable_…`**. Supabase anuncia la retirada de las claves heredadas para finales de 2026.
 - **En el navegador**, la clave publicable y la URL son públicas por diseño. La sesión se guarda en `localStorage` (`michiratagame.auth.session`), como hace el SDK por defecto; un XSS podría leerla. La interfaz actual usa `textContent`, lo que reduce ese riesgo; se recomienda añadir una CSP cuando se active. El guardado del juego (`michiratagame.demo`) nunca se lee ni se borra.
@@ -48,11 +48,11 @@ Reglas para el coordinador:
 
 1. `playerId` debe salir de la cookie HttpOnly `michi_player` ya resuelta por `app.ts`, **nunca del cuerpo** de la petición.
 2. El token llega en `Authorization: Bearer`, se lee con `bearerToken()` y se valida con `validateSession()` antes de enlazar. Aplicar las mismas comprobaciones de origen, JSON y límite de peticiones que `/api/presence`.
-3. Ruta propuesta: `POST /api/auth/link` → `200 { status, playerId }`; errores con `sessionStatus(reason)` (401/403/503; 404 si las cuentas están desactivadas).
+3. Ruta integrada: `POST /api/presence` valida Bearer y enlaza en la misma operación; errores con `sessionStatus(reason)` (401/403/503; 404 si las cuentas están desactivadas).
 
-Pendientes de decisión (no implementados, tocan `players`/cookies):
+Decisiones aplicadas y límites:
 
-- **Varios dispositivos.** Hoy cada jugador tiene un único `token` en `players`. Para que el segundo dispositivo use el jugador de la cuenta (`existing`) hace falta una tabla de sesiones por dispositivo o emitir otra cookie; el coordinador decide.
+- **Varios dispositivos.** Una sesión Bearer validada identifica al mismo jugador por `auth_links`, sin rotar la cookie de otro dispositivo ni fusionar los invitados. La cookie sola no puede escribir un jugador ya enlazado.
 - **Récords al unir.** Propuesta: conservar el jugador enlazado y, como máximo, actualizar `best = MAX(best, récord del anónimo)` marcando la importación igual que hoy se marcan saltos sospechosos.
 - **Progreso del juego.** Sigue en `localStorage`. La sincronización entre dispositivos es una función futura; la cuenta sólo da identidad.
 - **Cerrar sesión** no borra el progreso local ni la cookie anónima.
@@ -68,7 +68,7 @@ if (auth.status === 'ready') {
   // back.kind === 'recovery' ⇒ mostrar formulario de nueva contraseña → auth.client.updatePassword()
   // Botones: location.assign(await auth.client.oauthUrl('google' | 'facebook'))
   // Formularios: signUp, signIn, resendConfirmation, requestPasswordReset, signOut('local' | 'global')
-  // API propia: fetch('/api/auth/link', { headers: { Authorization: `Bearer ${await auth.client.accessToken()}` } })
+  // API propia: fetch('/api/presence', { method: 'POST', headers: { Authorization: `Bearer ${await auth.client.accessToken()}` } })
 }
 // 'disabled' o 'misconfigured': no mostrar acceso; el juego sigue igual.
 ```
@@ -141,3 +141,10 @@ Antes de abrir el registro: publicar política de privacidad (qué se guarda: co
 - Supabase, códigos de error: https://supabase.com/docs/guides/auth/debugging/error-codes
 - OpenAPI de Supabase Auth: https://github.com/supabase/auth/blob/master/openapi.yaml
 - Cliente oficial `auth-js` (`GoTrueClient.ts`, `GoTrueAdminApi.ts`, `lib/helpers.ts`, `lib/fetch.ts`): https://github.com/supabase/supabase-js/tree/master/packages/core/auth-js/src
+
+
+## Estado integrado en main
+
+La interfaz opcional está conectada al tablero y envía el token Bearer en presencia. El backend valida la sesión remotamente antes de vincularla con el jugador de la cookie; una cuenta reconocida usa la misma identidad del tablero en otro dispositivo. Salir vuelve a un jugador anónimo y no permite editar la cuenta anterior con su cookie. El progreso del juego sigue local, sin fusión de partidas ni sincronización de saldo. Los tokens anónimos/invalidos y los correos no confirmados se rechazan. Se bloquean también claves legacy `service_role` en la configuración del cliente y del servidor; decodificar su role sólo filtra una clave de configuración, no autentica usuarios.
+
+`npm start` carga `.env` si existe. Para activar: copiar `.env.example`, completar el mismo origen y la misma clave publicable en ambos pares de variables, poner `MICHI_AUTH_PROVIDER=supabase`, completar proveedores/redirects/SMTP del checklist, reconstruir y reiniciar. No se han colocado claves ni activado cuentas en la demo pública. La validación se hizo con HTTP simulado y navegador; falta recorrer Google, Facebook, confirmación y recuperación con un proyecto real. La marca de tramposo y el saldo importado no prueban legitimidad aunque una cuenta esté autenticada.

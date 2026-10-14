@@ -83,7 +83,7 @@ test('suspicious jumps are tagged and sorted after every regular player, survivi
   const dir = await mkdtemp(join(tmpdir(), 'michi-suspects-'));
   let time = 1_000_000;
   const path = join(dir, 'test.sqlite');
-  let server = createApp(path, dir, () => time);
+  let server = createApp(path, dir, () => time, { newPlayerPerClient: 1000, newPlayerGlobal: 1000 });
   let base = await listen(server);
   async function post(points: number, name?: string, cookie = '', extra = {}) {
     const response = await fetch(base + '/api/presence', { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: cookie, Origin: base }, body: JSON.stringify({ points, ...(name ? { name } : {}), ...extra }) });
@@ -286,4 +286,48 @@ test('ranking starts at one with no regular players and also with no suspects', 
       assert.equal(result.players[0].suspected, Boolean(suspected));
     } finally { await close(server); await rm(dir, { recursive: true, force: true }); }
   }
+});
+
+test('new identities have a separate quota while established players keep reporting', async () => {
+  let time = 1_000_000;
+  const server = createApp(':memory:', '/tmp/no-assets', () => time, { newPlayerPerClient: 2, newPlayerGlobal: 5 });
+  const base = await listen(server);
+  const post = (cookie = '') => fetch(base + '/api/presence', { method: 'POST', headers: { 'Content-Type': 'application/json', Cookie: cookie }, body: '{"points":1}' });
+  try {
+    const first = await post(); const cookie = first.headers.get('set-cookie')!.split(';')[0];
+    assert.equal((await post()).status, 200);
+    assert.equal((await post()).status, 429);
+    assert.equal((await post(cookie)).status, 200);
+    time += 60_001; assert.equal((await post()).status, 200);
+  } finally { await close(server); }
+});
+
+test('static file requests are rate-limited without consuming the API allowance', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'michi-static-'));
+  await writeFile(join(dir, 'index.html'), 'demo');
+  const server = createApp(':memory:', dir, () => 1_000_000, { staticPerClient: 2 });
+  const base = await listen(server);
+  try {
+    assert.equal((await fetch(base)).status, 200); assert.equal((await fetch(base)).status, 200);
+    assert.equal((await fetch(base)).status, 429);
+    assert.equal((await fetch(base + '/api/presence', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{"points":1}' })).status, 200);
+  } finally { await close(server); await rm(dir, { recursive: true, force: true }); }
+});
+
+test('static assets stream unchanged bytes, support HEAD and advertise bounded cache', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'michi-stream-'));
+  await mkdir(join(dir, 'assets'));
+  const data = Buffer.alloc(1_000_000, 123);
+  await writeFile(join(dir, 'assets', 'sample.webp'), data);
+  const server = createApp(':memory:', dir);
+  const base = await listen(server);
+  try {
+    const full = await fetch(base + '/assets/sample.webp');
+    assert.equal(full.status, 200); assert.equal(full.headers.get('content-length'), String(data.length));
+    assert.equal(full.headers.get('cache-control'), 'public, max-age=3600');
+    assert.deepEqual(Buffer.from(await full.arrayBuffer()), data);
+    const head = await fetch(base + '/assets/sample.webp', { method: 'HEAD' });
+    assert.equal(head.headers.get('content-length'), String(data.length)); assert.equal(await head.text(), '');
+    assert.equal((await fetch(base + '/assets')).status, 404);
+  } finally { await close(server); await rm(dir, { recursive: true, force: true }); }
 });

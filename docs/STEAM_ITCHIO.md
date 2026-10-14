@@ -58,3 +58,8 @@ Publicar un ejecutable no añade logros por sí solo. Los [logros](https://partn
 Probar el ZIP en una página privada de itch, confirmar el guardado y controles en móvil y enlazar al sitio estable para comunidad. Después hacer el wrapper Windows y el benchmark descrito. Sólo entonces iniciar el pago/onboarding Steam y preparar el lanzamiento con margen para sus esperas y revisión.
 
 No se publicó en tiendas, pagó ninguna tarifa ni crearon cuentas. No se probaron iframe real, EXE, Steam API, hardware Windows ni cookies de terceros.
+
+
+## Paquete ampliado
+
+El integrador regeneró el ZIP con las 24 skins: `npm run package:itch -- /tmp/michiratagame-24-skins-itch.zip`. La primera salida ampliada pesó 4.805.257 bytes; el tamaño final puede cambiar con código/documentación. Se conserva `index.html` en la raíz, rutas relativas y exclusión de bases/servidor. El tablero sigue requiriendo un servicio externo y la autenticación requiere su configuración. No se publicó en tiendas.

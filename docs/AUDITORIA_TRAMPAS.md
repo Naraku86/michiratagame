@@ -148,3 +148,8 @@ Cuando protection tenga commits, basta ejecutar `tools/audit-cheats.ts` en esa r
 **Veredicto:** el tablero no resiste trampas: con una sola petición (H1) se obtiene el récord máximo sin marca. Lo primero es H6 (cualquiera puede tumbar la API) y H1.
 
 **No revisado:** `src/ui.ts`, `src/sound.ts`, `style.css` y `vite.config.ts` (sin datos de entrada de red); la configuración real del proxy o túnel, y los datos de producción (fuera del alcance acordado). No se ejecutó `tsc` sobre `tools/` (pedía aprobación); el script sí corre con `--experimental-strip-types`.
+
+
+## Estado después de integrar los frentes
+
+Ver [COLA_DE_CORRECCIONES.md](COLA_DE_CORRECCIONES.md) y `audit-evidence-after.json`. La PoC inicial ya no reproduce H2 en una única IP, H6, H8, H9 ni H10; no significa que se hayan eliminado todas sus variantes. H1/H3/H4 siguen abiertos mientras el servidor acepte puntos del cliente. H5 depende de cómo el proxy sanee cabeceras y H7 está acotado por cuotas, pero continúa creando invitados persistentes. La prueba posterior utilizó un SQLite temporal y no tocó marcadores reales. El test de H6 ahora choca primero con el límite global; los tests de regresión específicos también verifican que el mapa lleno poda entradas caducadas.
