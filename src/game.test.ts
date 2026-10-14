@@ -14,6 +14,7 @@ import {
   production,
   tap,
   SKINS,
+  NEW_SKIN_POWERS,
   type GameState,
 } from './game.ts';
 
@@ -159,9 +160,9 @@ test('skin saves reject unknown, duplicate and unowned equipped skins', () => {
   assert.ok(isGameState(buySkin(state({ points: 200 }), 'robot')));
 });
 
-test('SKINS catalogue has all six entries with correct prices and assets', () => {
+test('SKINS catalogue retains the original six and adds eighteen entries with correct prices and assets', () => {
   const byId = new Map(SKINS.map(s => [s.id, s]));
-  assert.equal(byId.size, 6);
+  assert.equal(byId.size, 24);
   assert.equal(byId.get('original')!.price, 0);
   assert.equal(byId.get('football')!.price, 100);
   assert.equal(byId.get('robot')!.price, 200);
@@ -507,4 +508,52 @@ test('cost grows 1.5× to level 10 then 1.15× and never decreases', () => {
     prev = c;
   }
   assert.equal(cost(state({ clickLevel: 100 }), 'click'), 251078475);
+});
+
+
+test('eighteen community skins can be bought, persisted and equipped without stacking powers', () => {
+  const incoming = SKINS.slice(6);
+  assert.equal(incoming.length, 18);
+  let collection = state({ points: 1e9 });
+  for (const skin of incoming) {
+    const before = collection.points;
+    collection = buySkin(collection, skin.id);
+    assert.equal(collection.points, before - skin.price);
+    assert.equal(collection.equippedSkin, skin.id);
+    assert.equal(buySkin(collection, skin.id), collection);
+    assert.ok(isGameState(JSON.parse(JSON.stringify(collection))));
+    assert.equal(buySkin(state(), skin.id).ownedSkins.length, 0);
+    assert.equal(equipSkin(state(), skin.id).equippedSkin, 'original');
+  }
+  assert.equal(collection.ownedSkins.length, 18);
+  const unequipped = equipSkin(collection, 'original');
+  assert.equal(pointsPerClick(unequipped), 1);
+  assert.equal(production(unequipped), 0);
+  for (const skin of incoming) assert.equal(equipSkin(collection, skin.id).equippedSkin, skin.id);
+});
+
+test('community powers remain bounded at levels 16, 60 and 100 and all bonuses obey fatigue', () => {
+  for (const level of [16, 60, 100]) {
+    for (const skin of SKINS.slice(6)) {
+      const power = NEW_SKIN_POWERS[skin.id as keyof typeof NEW_SKIN_POWERS];
+      const s = state({ clickLevel: level, autoLevel: level, ownedSkins: [skin.id], equippedSkin: skin.id });
+      const base = (1 + level) * 2 ** Math.floor(level / 10);
+      const workerBase = level * 2 ** Math.floor(level / 10);
+      assert.equal(pointsPerClick(s), base * power.click);
+      assert.equal(production(s), workerBase * power.auto);
+      assert.ok(production(s) < 1e7);
+      const ordinary = tap(s, power.chain - 1, 0.5);
+      const bonus = tap(s, power.chain, 0.5);
+      assert.ok(bonus.amount > ordinary.amount, skin.id);
+      assert.equal(bonus.effect, power.effect);
+      assert.equal(tap(s, power.chain, 0.5, 0.1).amount, bonus.amount * 0.1);
+      assert.equal(tap(s, power.chain, 0.5, 0).amount, 0);
+      assert.equal(tap(s, power.chain, 0.5, -1).amount, 0);
+      assert.equal(tap(s, power.chain, 0.5, 2).amount, bonus.amount);
+      const capped = tap({ ...s, points: MAX_POINTS - 0.5 }, power.chain, 0.5);
+      assert.equal(capped.state.points, MAX_POINTS);
+      assert.equal(capped.amount, 0.5);
+      assert.equal(advance({ ...s, points: MAX_POINTS - 0.5 }, 100).points, MAX_POINTS);
+    }
+  }
 });

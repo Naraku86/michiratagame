@@ -1,5 +1,5 @@
 import './style.css';
-import { cost, milestoneMultiplier, pointsPerClick, production, SKINS } from './game.ts';
+import { cost, milestoneMultiplier, pointsPerClick, production, SKINS, NEW_SKIN_POWERS } from './game.ts';
 import type { GameState, Upgrade, Skin, TapEffect } from './game.ts';
 
 export interface UIHandlers {
@@ -28,7 +28,7 @@ const COMBO_TIMEOUT_MS = 1500;
 const BADGE_TIMEOUT_MS = 900;
 
 // Toques seguidos que pide cada Michirata para su bono; el puntaje lo decide game.ts.
-const CHAIN_TARGETS: Partial<Record<string, number>> = { football: 8, robot: 10, godin: 12, jester: 5 };
+const CHAIN_TARGETS: Partial<Record<string, number>> = { football: 8, robot: 10, godin: 12, jester: 5, ...Object.fromEntries(Object.entries(NEW_SKIN_POWERS).map(([id, power]) => [id, power.chain])) };
 
 const EFFECTS: Record<TapEffect, { label: string; frames: Keyframe[]; duration: number }> = {
   none: {
@@ -372,7 +372,8 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
   for (const skin of SKINS) {
     const card = el('article', `skin skin--${skin.id}`);
     const image = el('img', 'skin__image');
-    image.src = skin.image;
+    image.dataset.src = skin.image;
+    image.loading = 'lazy';
     image.alt = '';
     image.width = 96;
     image.height = 96;
@@ -398,6 +399,12 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
   }
   skinsTitle.classList.add('sr-only');
   skins.append(skinsSummary, skinsTitle, skinsList);
+  skins.addEventListener('toggle', () => {
+    for (const image of Array.from(skinsList.querySelectorAll<HTMLImageElement>('img'))) {
+      if (skins.open) image.src = image.dataset.src!;
+      else image.removeAttribute('src');
+    }
+  });
 
   // Aviso de guardado: fuera de las secciones para verse en todas.
   const statusLine = el('p', 'game__status');
