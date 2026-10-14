@@ -58,6 +58,20 @@ test('fatigue scales the entire tap reward, including every skin bonus, without 
     assert.equal(advance(state, 1).points, advance(worn.state, 1).points - worn.amount);
   }
 });
+test('reload after clock rollback preserves fatigue and resumes recovery from the new clock', () => {
+  let saved: string | null = null;
+  const storage = { getItem: () => saved, setItem: (_key: string, value: string) => { saved = value; } };
+  const hot = run(20, 30).fatigue;
+  for (const rollback of [1000, 10 * 365 * 24 * 3600 * 1000]) {
+    const future = { ...hot, updatedAt: hot.updatedAt + rollback };
+    saveFatigue(storage, future);
+    const loaded = loadFatigue(storage, hot.updatedAt);
+    assert.deepEqual(loaded, hot);
+    assert.equal(efficiency(loaded), efficiency(future));
+    saveFatigue(storage, loaded);
+    assert.deepEqual(loadFatigue(storage, hot.updatedAt + 1000), settleFatigue(hot, hot.updatedAt + 1000));
+  }
+});
 test('tap scaling happens before the point cap and cannot boost rewards', () => {
   const state = { ...initialState(), points: 1e12 - 1, clickLevel: 16 };
   assert.equal(tap(state, 1, 0.5, 0.5).state.points, 1e12);

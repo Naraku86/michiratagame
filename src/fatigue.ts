@@ -19,8 +19,9 @@ export function recordTap(fatigue: Fatigue, now: number): Fatigue {
 export function loadFatigue(storage: StorageLike, now: number): Fatigue {
   try {
     const value = JSON.parse(storage.getItem(FATIGUE_KEY) ?? 'null');
-    if (value && Number.isFinite(value.heat) && value.heat >= 0 && value.heat <= 1e6 && Number.isFinite(value.credits) && value.credits >= 0 && value.credits <= CAPACITY && Number.isFinite(value.updatedAt) && value.updatedAt >= 0 && value.updatedAt <= now)
-      return settleFatigue(value, now);
+    if (value && Number.isFinite(value.heat) && value.heat >= 0 && value.heat <= 1e6 && Number.isFinite(value.credits) && value.credits >= 0 && value.credits <= CAPACITY && Number.isFinite(value.updatedAt) && value.updatedAt >= 0)
+      // Rebase future saves without granting recovery or freezing recovery until the old date.
+      return settleFatigue({ ...value, updatedAt: Math.min(value.updatedAt, now) }, now);
   } catch { /* Storage failures must not stop play. */ }
   return freshFatigue(now);
 }
