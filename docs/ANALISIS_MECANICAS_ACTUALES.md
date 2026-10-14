@@ -48,3 +48,8 @@ Los stickers grandes de cara/salto se reservan a subir mejora de clic/contratar.
 5. Considerar lotes de compra cuando se observe fricción real.
 
 Prestigio, offline, ranking y referidos quedan como decisiones futuras, no como requisitos derivados del texto. Ver EXPERIMENTOS_AGENTES.md para evaluaciones aisladas y UI_UX_PROGRESION.md para la curva vigente.
+
+
+## Actualización: desgaste de clics
+
+Autoclickers permitidos con rendimiento decreciente en clics y bonos: reserva de 24 clics, recarga de 8/s, exceso convertido en calor y recuperación de 1 unidad/s. Factor `1/(1+calor/20)^2`. Las trabajadoras mantienen su producción. Persistencia separada: recargar, reiniciar o cambiar de skin no elimina el desgaste. No se borraron récords ni se clasificó a ningún usuario como bot: los marcadores actuales no conservan cadencia y el backend aún recibe puntos del cliente.

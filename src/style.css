@@ -946,3 +946,13 @@ summary:focus-visible,
 .community th:last-child { width: 35%; }
 .community__me { color: var(--gold); }
 .community input:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+
+.fatigue { flex: none; margin: 0; color: var(--gold); font-size: 0.8rem; text-align: center; overflow-wrap: anywhere; }
+@media (max-width: 24rem) {
+  .game__title { font-size: 0.95rem; }
+  .game__settings-title { padding: 0.6rem 0.2rem; font-size: 0.8rem; }
+  .community__toggle { font-size: 0.75rem; }
+  .skins__list { max-height: min(22dvh, 7rem); }
+}
+
+@media (max-height: 40rem) { .crew__sprites { display: none; } }

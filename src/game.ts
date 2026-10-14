@@ -107,37 +107,37 @@ function addPoints(state: GameState, amount: number): GameState {
   return points === state.points ? state : { ...state, points };
 }
 
-export function tap(state: GameState, chain: number, roll: number): { state: GameState; amount: number; effect: TapEffect } {
+export function tap(state: GameState, chain: number, roll: number, efficiency = 1): { state: GameState; amount: number; effect: TapEffect } {
   const effectiveChain = Number.isSafeInteger(chain) && chain > 0 ? chain : 1;
   const effectiveRoll = Number.isFinite(roll) && roll >= 0 && roll <= 1 ? roll : 0.5;
   const baseReward = (1 + state.clickLevel) * milestoneMultiplier(state.clickLevel);
 
-  let next = click(state);
+  let reward = pointsPerClick(state);
   let effect: TapEffect = 'none';
 
   switch (state.equippedSkin) {
     case 'football':
       if (effectiveChain % 8 === 0) {
-        next = addPoints(next, 20 * baseReward);
+        reward += 20 * baseReward;
         effect = 'goal';
       }
       break;
     case 'robot':
       if (effectiveChain % 10 === 0) {
-        next = addPoints(next, Math.max(20, production(state) * 10));
+        reward += Math.max(20, production(state) * 10);
         effect = 'sparks';
       }
       break;
     case 'godin':
       if (effectiveChain % 12 === 0) {
-        next = addPoints(next, baseReward * 3 + state.autoLevel * milestoneMultiplier(state.autoLevel) * 5);
+        reward += baseReward * 3 + state.autoLevel * milestoneMultiplier(state.autoLevel) * 5;
         effect = 'coffee';
       }
       break;
     case 'jester':
       if (effectiveChain % 5 === 0) {
         const multiplier = effectiveRoll < 0.6 ? 2 : effectiveRoll < 0.9 ? 5 : 10;
-        next = addPoints(next, baseReward * multiplier);
+        reward += baseReward * multiplier;
         effect = 'chaos';
       }
       break;
@@ -148,6 +148,8 @@ export function tap(state: GameState, chain: number, roll: number): { state: Gam
       break;
   }
 
+  const factor = Number.isFinite(efficiency) ? Math.min(1, Math.max(0, efficiency)) : 1;
+  const next = addPoints(state, reward * factor);
   return { state: next, amount: next.points - state.points, effect };
 }
 

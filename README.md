@@ -12,6 +12,7 @@ A project from a community of friends, developed with help from AI. The project'
 - Six skins with powers, automated workers, and multipliers every ten levels.
 - Synthesized sound, particles, and animated stickers, with mute and animation controls. Swipe a reward sticker sideways to dismiss it.
 - Local game saves.
+- Autoclickers are allowed, with progressive click fatigue: short bursts are tolerated, but sustained excess clicks earn less over time. Rest restores efficiency; worker production is unaffected.
 - A backend with an active-player counter, public player names, and a leaderboard persisted in SQLite.
 
 ## Getting started
@@ -42,6 +43,14 @@ npm run build
 ```
 
 `npm run preview` serves only the frontend. Use `npm start` for player names, presence, and the leaderboard.
+
+## Click fatigue
+
+Click fatigue uses a 24-click burst allowance, replenished at eight clicks per second. Excess clicks add heat; one unit of heat recovers per second. Click rewards, including skin bonuses, are multiplied by `1 / (1 + heat / 20)^2`. There is no ban: sustained excessive clicking keeps earning progressively smaller rewards, while worker production stays unchanged.
+
+The reduced per-click value and a short fatigue notice appear during play. Fatigue persists separately from game progress, so reloading or resetting the game does not clear it; elapsed rest time restores efficiency. Sound and particles are capped at about twelve feedback events per second during autoclicking.
+
+This is a gameplay balancing mechanic, not verified bot detection. Existing leaderboard records are preserved. The backend still accepts client-reported scores, and a modified client can bypass this rule.
 
 ## Data and deployment
 

@@ -15,6 +15,7 @@ export interface UI {
   render: (state: GameState) => void;
   feedback: (amount: number, effect: TapEffect, chain: number) => void;
   status: (message: string) => void;
+  fatigue: (factor: number) => void;
   celebrate: (message: string, animation?: 'face' | 'jump') => void;
 }
 
@@ -70,6 +71,11 @@ const numberFormat = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 0 }
 // aparentar que alcanza para una compra que todavía no se puede hacer.
 function formatNumber(value: number): string {
   return numberFormat.format(Number.isFinite(value) ? Math.floor(value) : 0);
+}
+
+const fractionalFormat = new Intl.NumberFormat('es-MX', { maximumFractionDigits: 2 });
+function formatReward(value: number): string {
+  return value > 0 && value < 0.01 ? '<0.01' : value < 1 ? fractionalFormat.format(value) : formatNumber(value);
 }
 
 function random(min: number, max: number): number {
@@ -170,6 +176,8 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
   scoreMain.append(points, el('p', 'score__label', 'puntos'));
   const stats = el('dl', 'stats');
   const perClick = el('dd', 'stats__value', '0');
+  let baseClickReward = 1;
+  let clickFactor = 1;
   const perSecond = el('dd', 'stats__value', '0');
   const perClickItem = el('div', 'stats__item stats__item--click');
   perClickItem.append(el('dt', 'stats__label', 'Por clic'), perClick);
@@ -296,6 +304,9 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
   comboTrack.append(comboFill);
   comboChain.append(comboCount, comboTrack);
   combo.append(comboEvent, comboChain);
+  const fatigueNotice = el('p', 'fatigue');
+  fatigueNotice.hidden = true;
+  fatigueNotice.title = 'Los clics rápidos sostenidos reducen sus puntos y bonos. Descansar recupera el rendimiento; las trabajadoras no se afectan.';
 
   // Cuadrilla de trabajadoras
   const crew = el('section', 'crew');
@@ -312,7 +323,7 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
   const playPanel = el('section', 'panel panel--play');
   playPanel.id = 'panel-play';
   playPanel.setAttribute('aria-label', 'Jugar');
-  playPanel.append(hero, combo, crew);
+  playPanel.append(hero, combo, fatigueNotice, crew);
 
   // Mejoras y metas permanentes
   const shop = el('section', 'panel panel--shop shop');
@@ -484,7 +495,8 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
       setText(skinsSummary, `Cambiar Michirata · ${SKINS.find(skin => skin.id === currentSkin)!.name}`);
     }
     setText(points, formatNumber(state.points));
-    setText(perClick, formatNumber(pointsPerClick(state)));
+    baseClickReward = pointsPerClick(state);
+    setText(perClick, formatReward(baseClickReward * clickFactor));
     setText(perSecond, formatNumber(production(state)));
     renderUpgrade(state, 'click', state.clickLevel);
     renderUpgrade(state, 'auto', state.autoLevel);
@@ -595,8 +607,9 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
     }
     const info = EFFECTS[effect] ?? EFFECTS.none;
     const bonus = info.label !== '';
-    const gained = `+${formatNumber(amount)}`;
-    setText(announcement, `${bonus ? `${info.label} ` : ''}Ganaste ${formatNumber(amount)} puntos.`);
+    const displayed = formatReward(amount);
+    const gained = `+${displayed}`;
+    setText(announcement, `${bonus ? `${info.label} ` : ''}Ganaste ${displayed} puntos.`);
     setText(comboEvent, bonus ? `${info.label} ${gained}` : '');
     combo.classList.toggle('combo--bonus', bonus);
     showChain(currentSkin ?? 'original', chain, bonus);
@@ -657,5 +670,11 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
     }
   }
 
-  return { render, feedback, status, celebrate };
+  function fatigue(factor: number) {
+    clickFactor = factor;
+    setText(perClick, formatReward(baseClickReward * factor));
+    fatigueNotice.hidden = factor >= 0.95;
+    if (!fatigueNotice.hidden) setText(fatigueNotice, `🥵 Clics al ${factor < 0.01 ? '<1' : Math.floor(factor * 100)}% · descansa para recuperar`);
+  }
+  return { render, feedback, status, celebrate, fatigue };
 }

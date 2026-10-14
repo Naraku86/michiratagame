@@ -4,6 +4,7 @@ import { load, save, type StorageLike } from './storage.ts';
 import { createUI } from './ui.ts';
 import { createSound } from './sound.ts';
 import { startCommunity } from './community.ts';
+import { efficiency, loadFatigue, recordTap, saveFatigue, settleFatigue } from './fatigue.ts';
 
 // Access itself can throw when browser storage is disabled.
 let storage: StorageLike;
@@ -15,6 +16,8 @@ const loaded = load(storage);
 const sound = createSound(storage);
 let state = loaded.state ?? initialState();
 let communityBest = state.points;
+let fatigue = loadFatigue(storage, Date.now());
+let lastFeedback = -Infinity;
 let writable = loaded.writable;
 let dirty = false;
 let chain = 0;
@@ -24,11 +27,15 @@ const ui = createUI(document.querySelector<HTMLElement>('#app')!, {
     const now = performance.now();
     chain = now - lastTap <= 1500 ? chain + 1 : 1;
     lastTap = now;
-    const result = tap(state, chain, Math.random());
+    fatigue = recordTap(fatigue, Date.now());
+    const result = tap(state, chain, Math.random(), efficiency(fatigue));
     state = result.state; communityBest = Math.max(communityBest, state.points); dirty = true;
     const pitch = { original: 1, football: 0.95, robot: 1.4, godin: 0.8, jester: 1.15, magnate: 1.05 }[state.equippedSkin];
-    sound.play(pitch);
-    ui.render(state); ui.feedback(result.amount, result.effect, chain);
+    // Limit audiovisual work during autoclicking, without dropping rewarded taps.
+    const showFeedback = now - lastFeedback >= 80;
+    if (showFeedback) { sound.play(pitch); lastFeedback = now; }
+    ui.render(state); ui.fatigue(efficiency(fatigue));
+    if (showFeedback) ui.feedback(result.amount, result.effect, chain);
   },
   soundEnabled: sound.enabled,
   toggleSound: () => sound.toggle(),
@@ -67,8 +74,10 @@ const ui = createUI(document.querySelector<HTMLElement>('#app')!, {
 });
 ui.render(state);
 ui.status(loaded.warning);
+ui.fatigue(efficiency(fatigue));
 startCommunity(document.querySelector<HTMLElement>('.game__header')!, () => communityBest);
 function persist() {
+  saveFatigue(storage, fatigue);
   if (!writable || !dirty) return;
   if (save(storage, state)) { dirty = false; ui.status(''); }
   else ui.status('No se pudo guardar. Tu progreso puede perderse al cerrar.');
@@ -77,6 +86,8 @@ let last = performance.now();
 setInterval(() => {
   const now = performance.now();
   if (!document.hidden) {
+    fatigue = settleFatigue(fatigue, Date.now());
+    ui.fatigue(efficiency(fatigue));
     // shortcut: ignore long stalls, use server time when shared progress is added.
     const seconds = Math.min((now - last) / 1000, 1);
     const next = advance(state, seconds);
