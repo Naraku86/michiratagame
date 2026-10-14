@@ -3,9 +3,10 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { createApp, ACTIVE_MS, SCORE_BURST, SCORE_RATE } from './app.ts';
+import { createApp, ACTIVE_MS, SCORE_BURST, SCORE_RATE, isValidIp, isLoopbackAddress, resolveClientIp } from './app.ts';
 import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
+import http from 'node:http';
 import type { Server } from 'node:http';
 
 async function listen(server: Server) {
@@ -15,7 +16,27 @@ async function listen(server: Server) {
   return `http://127.0.0.1:${address.port}`;
 }
 async function close(server: Server) {
+  server.closeIdleConnections?.();
   await new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
+}
+async function rawRequest(base: string, options: { path?: string; method?: string; headers?: Record<string, string>; body?: string }) {
+  const url = new URL(base);
+  return new Promise<{ status: number; body: string; headers: http.IncomingHttpHeaders }>((resolve, reject) => {
+    const req = http.request({
+      host: '127.0.0.1',
+      port: Number(url.port),
+      path: options.path ?? '/api/presence',
+      method: options.method ?? 'POST',
+      headers: options.headers ?? {},
+    }, res => {
+      let data = '';
+      res.on('data', chunk => (data += chunk));
+      res.on('end', () => resolve({ status: res.statusCode ?? 0, body: data, headers: res.headers }));
+    });
+    req.on('error', reject);
+    if (options.body) req.write(options.body);
+    req.end();
+  });
 }
 test('community shares presence, retains identity and records, validates input and persists after restart', async () => {
   const dir = await mkdtemp(join(tmpdir(), 'michi-community-'));
@@ -116,5 +137,93 @@ test('legacy database migration preserves identities and does not accuse histori
     const result = await response.json();
     assert.equal(result.me.id, 'legacy'); assert.equal(result.me.name, 'Antiguo');
     assert.equal(result.me.best, 72_000_000_000); assert.equal(result.me.suspected, false);
+  } finally { await close(server); await rm(dir, { recursive: true, force: true }); }
+});
+
+test('proxy headers are validated and trusted only from loopback', () => {
+  assert.equal(isValidIp('127.0.0.1'), true);
+  assert.equal(isValidIp('2001:db8::1'), true);
+  assert.equal(isValidIp('999.999.999.999'), false);
+  assert.equal(isValidIp('not-an-ip'), false);
+  assert.equal(isValidIp('http://evil'), false);
+  assert.equal(isLoopbackAddress('127.0.0.1'), true);
+  assert.equal(isLoopbackAddress('::1'), true);
+  assert.equal(isLoopbackAddress('::ffff:127.0.0.1'), true);
+  assert.equal(isLoopbackAddress('8.8.8.8'), false);
+  assert.equal(resolveClientIp({ socket: { remoteAddress: '127.0.0.1' }, headers: { 'cf-connecting-ip': '203.0.113.9' } }), '203.0.113.9');
+  assert.equal(resolveClientIp({ socket: { remoteAddress: '127.0.0.1' }, headers: { 'cf-connecting-ip': 'javascript:alert(1)' } }), '127.0.0.1');
+  assert.equal(resolveClientIp({ socket: { remoteAddress: '8.8.8.8' }, headers: { 'cf-connecting-ip': '203.0.113.9' } }), '8.8.8.8');
+  assert.equal(resolveClientIp({ socket: { remoteAddress: '127.0.0.1' }, headers: { 'x-forwarded-for': '198.51.100.7, 10.0.0.1' } }), '198.51.100.7');
+  assert.equal(resolveClientIp({ socket: { remoteAddress: '127.0.0.1' }, headers: {} }), '127.0.0.1');
+});
+
+test('malformed origin, preflight and declared oversized body are handled safely', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'michi-controls-'));
+  const dist = join(dir, 'dist'); await mkdir(dist); await writeFile(join(dist, 'index.html'), 'demo');
+  const server = createApp(join(dir, 'test.sqlite'), dist, () => 1_000_000);
+  const base = await listen(server);
+  try {
+    assert.equal((await fetch(base + '/api/presence', { method: 'POST', headers: { 'Content-Type': 'application/json', Origin: '%%%' }, body: '{"points":1}' })).status, 403);
+    const preflight = await fetch(base + '/api/presence', { method: 'OPTIONS', headers: { Origin: base } });
+    assert.equal(preflight.status, 204);
+    assert.equal(preflight.headers.get('access-control-allow-methods'), 'POST, OPTIONS');
+    assert.equal((await fetch(base + '/api/presence', { method: 'OPTIONS', headers: { Origin: 'https://other.example' } })).status, 403);
+    const oversized = await rawRequest(base, { headers: { 'Content-Type': 'application/json', 'Content-Length': '5000' }, body: 'x'.repeat(5000) });
+    assert.equal(oversized.status, 413);
+    const chunked = await rawRequest(base, { headers: { 'Content-Type': 'application/json' }, body: 'x'.repeat(5000) });
+    assert.equal(chunked.status, 413, 'chunked bodies are also capped while streaming');
+    const named = await fetch(base + '/api/presence', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ points: 1, name: 'Ratón ñandú 鼠' }) });
+    assert.equal(named.status, 200);
+    assert.equal((await named.json()).me.name, 'Ratón ñandú 鼠');
+  } finally { await close(server); await rm(dir, { recursive: true, force: true }); }
+});
+
+test('per-client rate limit is keyed by validated client address and recovers after the window', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'michi-perclient-'));
+  const dist = join(dir, 'dist'); await mkdir(dist); await writeFile(join(dist, 'index.html'), 'demo');
+  let time = 1_000_000;
+  const server = createApp(join(dir, 'test.sqlite'), dist, () => time, { rateLimitPerClient: 2, rateLimitGlobal: 1_000 });
+  const base = await listen(server);
+  async function postFrom(ip: string) {
+    return fetch(base + '/api/presence', { method: 'POST', headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': ip }, body: '{"points":1}' });
+  }
+  try {
+    assert.equal((await postFrom('10.0.0.1')).status, 200);
+    assert.equal((await postFrom('10.0.0.1')).status, 200);
+    assert.equal((await postFrom('10.0.0.1')).status, 429);
+    assert.equal((await postFrom('10.0.0.2')).status, 200, 'a different client is not limited');
+    time += 60_000;
+    assert.equal((await postFrom('10.0.0.1')).status, 200, 'client recovers after the window');
+  } finally { await close(server); await rm(dir, { recursive: true, force: true }); }
+});
+
+test('global rate limit caps total requests across all clients', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'michi-global-'));
+  const dist = join(dir, 'dist'); await mkdir(dist); await writeFile(join(dist, 'index.html'), 'demo');
+  const server = createApp(join(dir, 'test.sqlite'), dist, () => 1_000_000, { rateLimitGlobal: 3, rateLimitPerClient: 1_000 });
+  const base = await listen(server);
+  try {
+    for (let i = 0; i < 3; i++) {
+      assert.equal((await fetch(base + '/api/presence', { method: 'POST', headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': `10.0.0.${i + 1}` }, body: '{"points":1}' })).status, 200);
+    }
+    assert.equal((await fetch(base + '/api/presence', { method: 'POST', headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': '10.0.0.99' }, body: '{"points":1}' })).status, 429);
+  } finally { await close(server); await rm(dir, { recursive: true, force: true }); }
+});
+
+test('client map is bounded and prunes expired entries when full (size === max)', async () => {
+  const dir = await mkdtemp(join(tmpdir(), 'michi-prune-'));
+  const dist = join(dir, 'dist'); await mkdir(dist); await writeFile(join(dist, 'index.html'), 'demo');
+  let time = 1_000_000;
+  const server = createApp(join(dir, 'test.sqlite'), dist, () => time, { rateLimitPerClient: 1_000, rateLimitGlobal: 100_000, rateMaxClients: 2, rateWindowMs: 1_000 });
+  const base = await listen(server);
+  async function postFrom(ip: string) {
+    return fetch(base + '/api/presence', { method: 'POST', headers: { 'Content-Type': 'application/json', 'cf-connecting-ip': ip }, body: '{"points":1}' });
+  }
+  try {
+    assert.equal((await postFrom('10.0.0.1')).status, 200);
+    assert.equal((await postFrom('10.0.0.2')).status, 200);
+    assert.equal((await postFrom('10.0.0.3')).status, 503, 'map is full and nothing has expired yet');
+    time += 2_000;
+    assert.equal((await postFrom('10.0.0.3')).status, 200, 'expired entries are pruned and the new client is admitted');
   } finally { await close(server); await rm(dir, { recursive: true, force: true }); }
 });
