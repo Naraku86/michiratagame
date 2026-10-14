@@ -14,17 +14,17 @@ export const SKINS = [
   {"id": "dibujo", "name": "Garabato", "price": 2000, "power": "Clics +80%. Garabato gigante con bono cada 12 toques.", "image": "/assets/michirata-dibujo.webp"},
   {"id": "peluca", "name": "Peluca", "price": 2400, "power": "Clics y cuadrilla +30%. Pelucazo con premio cada 6 toques.", "image": "/assets/michirata-peluca.webp"},
   {"id": "presidenta", "name": "Presidenta", "price": 2800, "power": "Cuadrilla ×2.2. Decreto de puntos cada 15 toques.", "image": "/assets/michirata-presidenta.webp"},
-  {"id": "queso", "name": "Queso gigante", "price": 3300, "power": "Cuadrilla ×2.4. Queso extra cada 16 toques.", "image": "/assets/michirata-queso.webp"},
+  {"id": "queso", "name": "Queso gigante", "price": 3300, "power": "Cuadrilla ×3. Queso extra cada 16 toques.", "image": "/assets/michirata-queso.webp"},
   {"id": "brujita", "name": "Brujita", "price": 3900, "power": "Clics +50%, cuadrilla +20%. Hechizo cada 9 toques.", "image": "/assets/michirata-brujita.webp"},
   {"id": "calabaza", "name": "Calabaza", "price": 4500, "power": "Clics +20%, cuadrilla +50%. Dulce de puntos cada 7 toques.", "image": "/assets/michirata-calabaza.webp"},
   {"id": "sumo", "name": "Sumo", "price": 5200, "power": "Clics al doble. Golpe de sumo con bono cada 10 toques.", "image": "/assets/michirata-sumo.webp"},
   {"id": "mole", "name": "Mole", "price": 6000, "power": "Cuadrilla al doble, clics +10%. Ración extra cada 12 toques.", "image": "/assets/michirata-mole.webp"},
   {"id": "venadito", "name": "Venadito alado", "price": 6900, "power": "Clics +70%, cuadrilla +30%. Vuelo con premio cada 8 toques.", "image": "/assets/michirata-venadito.webp"},
-  {"id": "oficinista", "name": "Oficinista", "price": 7900, "power": "Cuadrilla ×2.6, clics +10%. Nómina extra cada 18 toques.", "image": "/assets/michirata-oficinista.webp"},
+  {"id": "oficinista", "name": "Oficinista", "price": 7900, "power": "Cuadrilla ×3.4, clics +10%. Nómina extra cada 18 toques.", "image": "/assets/michirata-oficinista.webp"},
   {"id": "tecladista", "name": "Tecladista", "price": 9000, "power": "Clics +30%, cuadrilla +80%. Teclazo con bono cada 11 toques.", "image": "/assets/michirata-tecladista.webp"},
-  {"id": "ni", "name": "Ñi", "price": 10200, "power": "Clics ×2.2. Un ñi con premio cada 3 toques.", "image": "/assets/michirata-ni.webp"},
+  {"id": "ni", "name": "Ñi", "price": 10200, "power": "Clics ×2.5. Un ñi con premio cada 3 toques.", "image": "/assets/michirata-ni.webp"},
   {"id": "locutora", "name": "Locutora", "price": 11500, "power": "Clics +50%, cuadrilla +60%. Premio al aire cada 10 toques.", "image": "/assets/michirata-locutora.webp"},
-  {"id": "magica", "name": "Mágica", "price": 13000, "power": "Clics y cuadrilla +80%. Transformación con premio cada 14 toques.", "image": "/assets/michirata-magica.webp"},
+  {"id": "magica", "name": "Mágica", "price": 13000, "power": "Clics al doble y cuadrilla +80%. Transformación con premio cada 14 toques.", "image": "/assets/michirata-magica.webp"},
 ] as const;
 
 export type Skin = typeof SKINS[number]["id"];
@@ -39,17 +39,17 @@ export const NEW_SKIN_POWERS = {
   dibujo: { click: 1.8, auto: 1, chain: 12, bonusClick: 10, bonusProduction: 0, effect: 'chaos' },
   peluca: { click: 1.3, auto: 1.3, chain: 6, bonusClick: 4, bonusProduction: 1, effect: 'chaos' },
   presidenta: { click: 1, auto: 2.2, chain: 15, bonusClick: 2, bonusProduction: 4, effect: 'coins' },
-  queso: { click: 1, auto: 2.4, chain: 16, bonusClick: 0, bonusProduction: 4, effect: 'coffee' },
+  queso: { click: 1, auto: 3, chain: 16, bonusClick: 0, bonusProduction: 4, effect: 'coffee' },
   brujita: { click: 1.5, auto: 1.2, chain: 9, bonusClick: 8, bonusProduction: 1, effect: 'sparks' },
   calabaza: { click: 1.2, auto: 1.5, chain: 7, bonusClick: 5, bonusProduction: 2, effect: 'chaos' },
   sumo: { click: 2, auto: 1, chain: 10, bonusClick: 8, bonusProduction: 0, effect: 'goal' },
   mole: { click: 1.1, auto: 2, chain: 12, bonusClick: 1, bonusProduction: 4, effect: 'coffee' },
   venadito: { click: 1.7, auto: 1.3, chain: 8, bonusClick: 6, bonusProduction: 1, effect: 'goal' },
-  oficinista: { click: 1.1, auto: 2.6, chain: 18, bonusClick: 0, bonusProduction: 4, effect: 'coffee' },
+  oficinista: { click: 1.1, auto: 3.4, chain: 18, bonusClick: 0, bonusProduction: 4, effect: 'coffee' },
   tecladista: { click: 1.3, auto: 1.8, chain: 11, bonusClick: 3, bonusProduction: 3, effect: 'sparks' },
-  ni: { click: 2.2, auto: 1, chain: 3, bonusClick: 2, bonusProduction: 0, effect: 'chaos' },
+  ni: { click: 2.5, auto: 1, chain: 3, bonusClick: 4, bonusProduction: 0, effect: 'chaos' },
   locutora: { click: 1.5, auto: 1.6, chain: 10, bonusClick: 4, bonusProduction: 2, effect: 'coins' },
-  magica: { click: 1.8, auto: 1.8, chain: 14, bonusClick: 7, bonusProduction: 3, effect: 'sparks' },
+  magica: { click: 2, auto: 1.8, chain: 14, bonusClick: 16, bonusProduction: 3, effect: 'sparks' },
 } as const;
 
 export function newSkinPower(skin: Skin) {

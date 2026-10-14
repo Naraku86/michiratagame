@@ -26,3 +26,13 @@ test('ranking envelope covers current maximum at sustained accepted rate', () =>
   assert.ok(run.total < rankingAllowance(600));
   assert.equal(run.nextClickCost, null);
 });
+
+test('tuned late-game skins provide distinct idle, relaxed and active niches', () => {
+  for (const level of [16, 60, 100]) {
+    assert.ok(simulate('oficinista', level, 0, 600).pointsPerSecond > simulate('magnate', level, 0, 600).pointsPerSecond);
+    assert.ok(simulate('magica', level, 1, 600).pointsPerSecond > simulate('football', level, 1, 600).pointsPerSecond);
+    assert.ok(simulate('ni', level, 4, 600).pointsPerSecond > simulate('football', level, 4, 600).pointsPerSecond);
+    assert.ok(simulate('ni', level, 4, 600).pointsPerSecond > simulate('magica', level, 4, 600).pointsPerSecond);
+    assert.ok(simulate('magica', level, 1, 600).pointsPerSecond > simulate('ni', level, 1, 600).pointsPerSecond);
+  }
+});

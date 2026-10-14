@@ -195,3 +195,7 @@ La skin pesa más que el prestigio en la primera vuelta. Que conserven las skins
 ## Integración del catálogo ampliado
 
 El prototipo y sus 14 pruebas se ejecutaron también con las 24 skins. El logro de colección exige ahora todas las skins comprables; se conservan las que tenga el jugador, sin importar cuántas sean. Las estimaciones originales de recompra de cinco skins corresponden al catálogo histórico, no al ampliado. El modelo continúa siendo un experimento: no se activó prestigio en el juego y el botón actual de reinicio sigue borrando sólo la partida local tras confirmación.
+
+### Comprobación con el catálogo final
+
+Después del ajuste de las nuevas skins, el máximo simulado con todas las super mejoras es Ñi: 6.548.138,67 puntos/s, por debajo del límite de prueba de 7,5 millones/s. Las tablas anteriores describen las skins originales; los tests ejecutan las 24 variantes actuales. El prestigio sigue siendo un prototipo, sin activar reinicios premiados en la demo.

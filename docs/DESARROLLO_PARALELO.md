@@ -37,6 +37,6 @@ Los siete frentes entregaron sus artefactos y se integraron en `main`:
 | Nuevas skins | 18 WebP, fórmulas y `NUEVAS_MICHIRATAS.md` | Comprables y equipables, guardados conservados y movimiento reducido |
 | Protección | Límites API/global/altas/archivos, streaming, índice y carga local | 1.000 solicitudes: 120 aceptadas, 880 limitadas; DNS/WAF fuera del código pendientes |
 
-Validación integrada: 112 pruebas, build de tipos incluyendo tools, navegador en cinco tamaños, compra/equipado/recarga de las 18 skins y cuentas con HTTP simulado. La configuración real de proveedores, el iframe de itch, Windows/Steamworks y la percepción de diversión no se probaron.
+Validación integrada: 113 pruebas, build de tipos incluyendo tools, navegador en cinco tamaños, compra/equipado/recarga de las 18 skins y cuentas con HTTP simulado. La configuración real de proveedores, el iframe de itch, Windows/Steamworks y la percepción de diversión no se probaron.
 
-Siguiente trabajo priorizado en [COLA_DE_CORRECCIONES.md](COLA_DE_CORRECCIONES.md). El balance conserva las seis skins anteriores; las nuevas tienen coeficientes explícitos para próximos ajustes. La simulación identifica una ventaja activa de Futbolista, no justifica una modificación silenciosa de partidas.
+Siguiente trabajo priorizado en [COLA_DE_CORRECCIONES.md](COLA_DE_CORRECCIONES.md). El balance conserva las seis skins anteriores; las nuevas tienen coeficientes explícitos para próximos ajustes. Se ajustaron Queso, Oficinista, Ñi y Mágica con pruebas de nichos: producción pasiva, clic pausado y clic activo en niveles 16, 60 y 100.

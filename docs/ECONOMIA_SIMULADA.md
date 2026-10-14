@@ -58,3 +58,7 @@ No cambia economía, progreso guardado ni UI. No mide diversión/retención ni h
 ## Entrega integrada: catálogo de 24
 
 Se regeneraron los artefactos con `npm run balance`: 24 skins, 1.296 escenarios y 3.888 corridas en 10,74 s en este servidor; cero márgenes negativos en la matriz. CSV y JSON ya corresponden al catálogo ampliado. `npm test` incluye las pruebas del simulador. Los coeficientes de las 18 skins nuevas están en `NEW_SKIN_POWERS`, y los perfiles/precios en `docs/NUEVAS_MICHIRATAS.md`; sus descripciones visibles se simplificaron para no llenar la UI con fórmulas. Los datos completos permanecen disponibles en la documentación y artefactos. La Futbolista conserva una ventaja significativa en juego activo: queda un candidato explícito para el siguiente ajuste, no un nerf no comunicado.
+
+### Ajuste final de cuatro skins
+
+Se conservaron las seis skins originales y se ajustaron Queso, Oficinista, Ñi y Mágica. La matriz final a nivel 100 distingue tres nichos: Oficinista sin clics produce 348.160/s; Mágica a 1 clic/s obtiene 545.710,08/s; Ñi a 4 clics/s obtiene 1.688.234,67/s. Las pruebas verifican estas ventajas también en niveles 16 y 60. Son escenarios controlados, no una garantía de equilibrio para toda estrategia. Los artefactos corresponden a estos coeficientes finales.
