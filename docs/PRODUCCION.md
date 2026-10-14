@@ -59,3 +59,7 @@ Fuentes verificadas el 14 de octubre:
 - [Cloudflare: configurar un túnel](https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/get-started/).
 - [Supabase: planes y precios](https://supabase.com/pricing).
 - [Supabase: correo SMTP](https://supabase.com/docs/guides/auth/auth-smtp).
+
+## Estado instalado en este servidor
+
+La release `df20968` se instaló y arrancó con systemd en `127.0.0.1:4186`, separada del demo público. Servicio y timers habilitados; chequeo de salud correcto; respaldo real restaurado en un archivo temporal con integridad correcta. GitHub Actions pasó en https://github.com/Naraku86/michiratagame/actions/runs/38581698843. El dominio definitivo, cuentas reales, envío SMTP, copia externa y avisos externos siguen pendientes de sus configuraciones. El túnel temporal del demo no se modificó.
