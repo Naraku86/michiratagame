@@ -4,7 +4,7 @@ import { mountAccount } from './account-ui.ts';
 type Player = { id: string; name: string; best: number; rank: number; active?: boolean; suspected?: boolean; reason?: string; bigotes?: number; record?: number; penalty?: number };
 type Snapshot = { active: number; me: Player; players: Player[] };
 
-export function startCommunity(header: HTMLElement, getProgress: () => { points: number; bigotes: number; penalty: number }, onRecord: (record: number, penalty: number) => void = () => {}) {
+export function startCommunity(header: HTMLElement, getProgress: () => { points: number; bigotes: number; penalty: number }, onRecord: (record: number, penalty: number) => void = () => {}, onAccountChange: () => void = () => {}) {
   const menu = document.createElement('details');
   menu.className = 'community';
   dismissOnSwipe(menu);
@@ -45,7 +45,7 @@ export function startCommunity(header: HTMLElement, getProgress: () => { points:
   content.append(title, note, form, status, personal, table);
   menu.append(summary, content);
   header.append(menu);
-  const account = mountAccount(content, () => { initialized = false; void sync(); });
+  const account = mountAccount(content, () => { initialized = false; onAccountChange(); void sync(); });
   if (account) form.after(content.querySelector('.account')!);
   let busy = false;
   let initialized = false;
@@ -108,4 +108,5 @@ export function startCommunity(header: HTMLElement, getProgress: () => { points:
   setInterval(() => void sync(), 20_000);
   document.addEventListener('visibilitychange', () => { if (!document.hidden) void sync(); });
   menu.addEventListener('toggle', () => { if (menu.open) void sync(); });
+  return { accessToken: async () => await account?.accessToken() ?? null };
 }

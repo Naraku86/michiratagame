@@ -12,3 +12,8 @@ data/
 .claude/
 .DS_Store
 !/.env.example
+
+# Immutable deployment artifacts
+/releases/
+/current
+/current.next

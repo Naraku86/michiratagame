@@ -5,6 +5,8 @@ import { createApp } from './app.ts';
 
 try { loadEnvFile(); } catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
 
+if (process.env.NODE_ENV === 'production' && process.env.MICHI_AUTHORITATIVE !== '1') throw new Error('Producción requiere MICHI_AUTHORITATIVE=1.');
+
 const directory = resolve(process.env.MICHI_DATA_DIR ?? 'data');
 mkdirSync(directory, { recursive: true, mode: 0o700 });
 const port = Number(process.env.PORT ?? 4174);

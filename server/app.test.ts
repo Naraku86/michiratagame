@@ -355,3 +355,20 @@ test('prestige boosts the board, penalties lower rank, and stale clients cannot 
     for(const body of [{points:1,bigotes:-1},{points:1,bigotes:1358},{points:1,bigotes:1.5},{points:1,penalty:-1},{points:1,penalty:'2'}])assert.equal((await post(body,cookie)).status,400);
   }finally{await close(server);await rm(dir,{recursive:true,force:true});}
 });
+
+test('production ignores forged points and keeps demo history outside verified ranking',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'michi-verified-'));const path=join(dir,'test.sqlite');
+ let time=1000;
+ const server=createApp(path,dir,()=>time,{},undefined,undefined,true);const base=await listen(server);
+ async function post(route:string,body:unknown,cookie=''){return fetch(base+route,{method:'POST',headers:{'Content-Type':'application/json',Origin:base,Cookie:cookie},body:JSON.stringify(body)});}
+ try{
+ const first=await post('/api/presence',{points:1e12,bigotes:1357,penalty:0});const cookie=first.headers.get('set-cookie')!.split(';')[0];const data=await first.json();assert.equal(data.me.best,0);assert.equal(data.me.bigotes,0);assert.equal(data.players.length,0);
+ const boot=await(await post('/api/game',{requestId:crypto.randomUUID(),actions:[]},cookie)).json();assert.equal(boot.state.game.points,0);
+ time+=500;const body={requestId:crypto.randomUUID(),revision:boot.state.revision,playerId:boot.state.playerId,actions:[{type:'tap',count:4}],points:1e12,bigotes:1357};
+ const game=await(await post('/api/game',body,cookie)).json();assert.equal(game.state.game.points,4);
+ const retry=await(await post('/api/game',body,cookie)).json();assert.equal(retry.state.game.points,4);
+ assert.equal((await post('/api/game',{...body,requestId:crypto.randomUUID()},cookie)).status,409);
+ const board=await(await post('/api/presence',{points:1e12,bigotes:1357},cookie)).json();assert.equal(board.me.best,4);assert.equal(board.me.bigotes,0);
+ assert.equal((await post('/api/game',{requestId:crypto.randomUUID(),actions:[{type:'tap',count:1e9}]},cookie)).status,400);
+ }finally{await close(server);await rm(dir,{recursive:true,force:true});}
+});

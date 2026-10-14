@@ -1,0 +1,26 @@
+[Unit]
+Description=Michiratagame verified production server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/michiratagame/current
+Environment=NODE_ENV=production
+Environment=MICHI_AUTHORITATIVE=1
+Environment=MICHI_HOST=127.0.0.1
+Environment=PORT=4174
+Environment=MICHI_DATA_DIR=%h/michiratagame/data/production
+EnvironmentFile=-%h/.config/michiratagame/production.env
+ExecStart=/usr/bin/env node --experimental-strip-types server/start.ts
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=10
+UMask=0077
+NoNewPrivileges=true
+MemoryMax=512M
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=default.target

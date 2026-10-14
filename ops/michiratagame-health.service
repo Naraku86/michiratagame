@@ -1,0 +1,9 @@
+[Unit]
+Description=Michiratagame health check
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/michiratagame/current
+EnvironmentFile=-%h/.config/michiratagame/production.env
+ExecStart=/usr/bin/env node --experimental-strip-types tools/check-health.ts
+NoNewPrivileges=true

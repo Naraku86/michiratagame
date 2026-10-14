@@ -8,6 +8,9 @@ import { freshPrestige, migrateV2, prestigeTap, prestigeAdvance, prestigeBuy, pr
 import { freshRhythm, rhythmTap, settleRhythm, rhythmBonus, penalized, decayPoints } from './rhythm.ts';
 import { efficiency, loadFatigue, recordTap, saveFatigue, settleFatigue } from './fatigue.ts';
 
+let online = import.meta.env.VITE_GAME_MODE === 'online';
+try { const response = await fetch('/api/config', {signal: AbortSignal.timeout(3000)}); if(response.ok) online ||= (await response.json()).authoritative === true; } catch { /* Standalone itch package retains local play. */ }
+if (online) { const { startOnlineGame } = await import('./online.ts'); await startOnlineGame(); } else {
 const pitches: Partial<Record<Skin, number>> = { original: 1, football: 0.95, robot: 1.4, godin: 0.8, jester: 1.15, magnate: 1.05 };
 
 // Access itself can throw when browser storage is disabled.
@@ -144,3 +147,5 @@ setInterval(() => {
 setInterval(persist, 1000);
 document.addEventListener('visibilitychange', () => { persist(); last = performance.now(); chain = 0; lastTap = -Infinity; clearFeedback(); });
 window.addEventListener('pagehide', persist);
+
+}

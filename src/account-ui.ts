@@ -10,7 +10,7 @@ export function mountAccount(container: HTMLElement, changed: () => void): AuthC
   const panel = document.createElement('details');
   panel.className = 'account';
   const summary = document.createElement('summary'); summary.textContent = 'Cuenta';
-  const note = document.createElement('p'); note.textContent = 'Tu cuenta identifica tu puesto. La partida continúa guardada sólo en este dispositivo.';
+  const note = document.createElement('p'); note.textContent = 'Tu cuenta identifica tu jugador. En modo validado, la partida se guarda en el servidor; el demo local conserva su guardado aparte.';
   const status = document.createElement('p'); status.setAttribute('role', 'status');
   const identity = document.createElement('p');
   const controls = document.createElement('div'); controls.className = 'account__controls';

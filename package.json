@@ -12,7 +12,8 @@
     "balance": "node --experimental-strip-types tools/balance.ts",
     "package:itch": "node --experimental-strip-types tools/package-itch.ts",
     "prestige:simulate": "node --experimental-strip-types tools/prestige.ts",
-    "audit:local": "node --experimental-strip-types tools/audit-cheats.ts"
+    "audit:local": "node --experimental-strip-types tools/audit-cheats.ts",
+    "backup": "node --experimental-strip-types tools/backup.ts"
   },
   "devDependencies": {
     "typescript": "~5.9.0",

@@ -1,3 +1,4 @@
+import { createGameStore, validActions } from './game.ts';
 import { bearerToken, createAuthLinks, loadAuthConfig, validateSession, sessionStatus, type AuthConfig, type AuthUser } from './auth.ts';
 import { createServer, type IncomingMessage, type ServerResponse } from 'node:http';
 import { DatabaseSync } from 'node:sqlite';
@@ -181,9 +182,10 @@ export function createApp(
   limits: AppLimits = {},
   authConfig: AuthConfig = loadAuthConfig(process.env),
   authFetcher: typeof fetch = fetch,
+  authoritative = process.env.MICHI_AUTHORITATIVE === '1',
 ) {
-  const rateLimitPerClient = limits.rateLimitPerClient ?? DEFAULT_RATE_LIMIT;
-  const rateLimitGlobal = limits.rateLimitGlobal ?? DEFAULT_RATE_LIMIT_GLOBAL;
+  const rateLimitPerClient = limits.rateLimitPerClient ?? (authoritative ? 1200 : DEFAULT_RATE_LIMIT);
+  const rateLimitGlobal = limits.rateLimitGlobal ?? (authoritative ? 20000 : DEFAULT_RATE_LIMIT_GLOBAL);
   const rateWindowMs = limits.rateWindowMs ?? DEFAULT_RATE_WINDOW_MS;
   const rateMaxClients = limits.rateMaxClients ?? DEFAULT_RATE_MAX_CLIENTS;
   const maxBodyBytes = limits.maxBodyBytes ?? MAX_BODY_BYTES;
@@ -203,6 +205,7 @@ export function createApp(
   for (const [column, definition] of [
     ['suspected', 'INTEGER NOT NULL DEFAULT 0'],
     ['checked_at', 'INTEGER NOT NULL DEFAULT 0'],
+    ['verified', 'INTEGER NOT NULL DEFAULT 0'],
     ['bigotes', 'INTEGER NOT NULL DEFAULT 0'],
     ['penalty', 'REAL NOT NULL DEFAULT 0'],
     ['ranking_points', 'INTEGER NOT NULL DEFAULT 0'],
@@ -211,6 +214,8 @@ export function createApp(
   if (!columns.has('ranking_points')) db.exec('UPDATE players SET ranking_points = best');
   db.exec('CREATE INDEX IF NOT EXISTS players_score ON players(suspected, ranking_points DESC, id ASC)');
   db.exec('CREATE INDEX IF NOT EXISTS players_ranking ON players(suspected, best DESC, id ASC)');
+  if (authoritative) db.exec('CREATE TABLE IF NOT EXISTS demo_records AS SELECT id,name,best,bigotes,penalty,suspected FROM players WHERE verified = 0');
+  const games = createGameStore(db);
   const find = db.prepare('SELECT * FROM players WHERE token = ?');
   const findById = db.prepare('SELECT * FROM players WHERE id = ?');
   const authLinks = createAuthLinks(db, now);
@@ -219,10 +224,12 @@ export function createApp(
   const updateScore = db.prepare('UPDATE players SET bigotes = MAX(bigotes, ?), penalty = MAX(penalty, ?) WHERE id = ?');
   const recalculateScore = db.prepare('UPDATE players SET ranking_points = CAST(MAX(0, best * (1 + MIN(25, bigotes) / 100.0) - penalty) AS INTEGER) WHERE id = ?');
   const count = db.prepare('SELECT COUNT(*) AS count FROM players WHERE seen > ?');
-  const top = db.prepare('SELECT id, name, best, seen, suspected, bigotes, ranking_points FROM players WHERE suspected = 0 ORDER BY ranking_points DESC, id ASC LIMIT 50');
-  const suspects = db.prepare('SELECT id, name, best, seen, suspected, bigotes, ranking_points FROM players WHERE suspected = 1 ORDER BY ranking_points DESC, id ASC LIMIT 10');
-  const normalCount = db.prepare('SELECT COUNT(*) AS count FROM players WHERE suspected = 0');
-  const rank = db.prepare('SELECT COUNT(*) + 1 AS rank FROM players WHERE suspected < ? OR (suspected = ? AND (ranking_points > ? OR (ranking_points = ? AND id < ?)))');
+  const scope = authoritative ? 'verified = 1 AND ' : '';
+  db.exec('CREATE INDEX IF NOT EXISTS players_verified_score ON players(verified, suspected, ranking_points DESC, id ASC)');
+  const top = db.prepare('SELECT id, name, best, seen, suspected, bigotes, ranking_points FROM players WHERE ' + scope + 'suspected = 0 ORDER BY ranking_points DESC, id ASC LIMIT 50');
+  const suspects = db.prepare('SELECT id, name, best, seen, suspected, bigotes, ranking_points FROM players WHERE ' + scope + 'suspected = 1 ORDER BY ranking_points DESC, id ASC LIMIT 10');
+  const normalCount = db.prepare('SELECT COUNT(*) AS count FROM players WHERE ' + scope + 'suspected = 0');
+  const rank = db.prepare('SELECT COUNT(*) + 1 AS rank FROM players WHERE ' + scope + '(suspected < ? OR (suspected = ? AND (ranking_points > ? OR (ranking_points = ? AND id < ?))))');
   const rateLimiter = new RateLimiter(rateLimitPerClient, rateLimitGlobal, rateWindowMs, rateMaxClients);
   const registrationLimiter = new RateLimiter(limits.newPlayerPerClient ?? 10, limits.newPlayerGlobal ?? 100, rateWindowMs, rateMaxClients);
   const staticLimiter = new RateLimiter(limits.staticPerClient ?? 600, limits.staticGlobal ?? 6000, rateWindowMs, rateMaxClients);
@@ -266,6 +273,14 @@ export function createApp(
         return;
       }
 
+      if ((url.pathname === '/healthz' || url.pathname === '/api/config') && req.method === 'GET') {
+        const check=staticLimiter.allow(resolveClientIp(req),now());
+        if(!check.ok){json(res,check.status,{error:'Demasiadas solicitudes.'});return;}
+      }
+      if (url.pathname === '/healthz' && req.method === 'GET') {
+        db.prepare('SELECT 1').get(); json(res,200,{ok:true,authoritative});return;
+      }
+      if (url.pathname === '/api/config' && req.method === 'GET') { json(res,200,{authoritative});return; }
       if (url.pathname.startsWith('/api/')) {
         const ip = resolveClientIp(req);
         const time = now();
@@ -293,7 +308,7 @@ export function createApp(
           return;
         }
 
-        if (url.pathname !== '/api/presence' || req.method !== 'POST') {
+        if ((!['/api/presence', ...(authoritative ? ['/api/game'] : [])].includes(url.pathname)) || req.method !== 'POST') {
           json(res, 404, { error: 'No encontrado.' });
           return;
         }
@@ -325,7 +340,11 @@ export function createApp(
           json(res, 400, { error: 'JSON inválido.' });
           return;
         }
-        if (!body || typeof body !== 'object' || Array.isArray(body) || !Number.isFinite(body.points) || body.points < 0 || body.points > 1e12) {
+        const isGame = url.pathname === '/api/game';
+        if (isGame && (!body || !validActions(body.actions) || typeof body.requestId !== 'string' || !/^[a-f0-9-]{36}$/i.test(body.requestId) || (body.revision !== undefined && (!Number.isSafeInteger(body.revision) || body.revision < 0)))) {
+          json(res,400,{error:'Acciones inválidas.'});return;
+        }
+        if (!body || typeof body !== 'object' || Array.isArray(body) || (!authoritative && (!Number.isFinite(body.points) || body.points < 0 || body.points > 1e12))) {
           json(res, 400, { error: 'Puntuación inválida.' });
           return;
         }
@@ -365,7 +384,17 @@ export function createApp(
           if (link.status === 'conflict') { json(res, 409, { error: 'Este jugador ya pertenece a otra cuenta.' }); return; }
           player = findById.get(link.playerId)!;
         }
-        // shortcut: scores are client-reported, move game simulation to server for competitive play.
+        if (authoritative) {
+          if (isGame) {
+            const result=games.apply(String(player.id),body,time);
+            if(result.status===409) { json(res,409,{error:'La partida cambió en otra sesión. Sincroniza de nuevo.',state:result.state});return; }
+            db.prepare('UPDATE players SET best=?,bigotes=?,penalty=?,ranking_points=?,verified=1,seen=? WHERE id=?').run(result.state.record,result.state.prestige.claimed,result.state.penalty,Math.floor(Math.max(0,result.state.record*(1+Math.min(25,result.state.prestige.claimed)/100)-result.state.penalty)),time,player.id);
+            json(res,200,{state:result.state});return;
+          }
+          db.prepare('UPDATE players SET name=?,seen=? WHERE id=?').run(body.name===undefined ? player.name : body.name.trim(),time,player.id);
+          player=findById.get(String(player.id))!;json(res,200,snapshot(player,user));return;
+        }
+        // shortcut: demo scores are client-reported, move game simulation to server for competitive play.
         const candidate = Math.floor(body.points);
         const delta = Math.max(0, candidate - Number(player.best));
         const allowance = Number(player.score_credit) + Math.max(0, time - Number(player.checked_at)) / 1000 * SCORE_RATE;

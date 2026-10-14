@@ -109,3 +109,7 @@ Open an [issue](https://github.com/Naraku86/michiratagame/issues) with a bug or 
 [MIT](LICENSE). Covers the project's code and original assets. Dependencies retain their own licenses. The license does not grant rights to third-party trademarks or elements depicted in images.
 
 The community supplied the Michirata images and variants; the concept art was generated with AI. The original animated WebP files have been preserved. See [public/assets/README.md](public/assets/README.md) for details.
+
+## Production mode
+
+Production computes game progress on the Node backend (`MICHI_AUTHORITATIVE=1`), stores validated saves in SQLite, and ignores client-reported points. It uses a separate verified leaderboard; old local demo saves remain untouched. See [production setup and operational checks](docs/PRODUCCION.md) for immutable releases, systemd services, daily checked backups, health checks and the configuration still required from the owner. OAuth and external backups are not configured by default.

@@ -1,0 +1,11 @@
+[Unit]
+Description=Verified SQLite backup for Michiratagame
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/michiratagame/current
+Environment=MICHI_DATA_DIR=%h/michiratagame/data/production
+EnvironmentFile=-%h/.config/michiratagame/production.env
+ExecStart=/usr/bin/env node --experimental-strip-types tools/backup.ts
+UMask=0077
+NoNewPrivileges=true

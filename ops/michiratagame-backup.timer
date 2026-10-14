@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily Michiratagame backup
+
+[Timer]
+OnCalendar=daily
+Persistent=true
+RandomizedDelaySec=10m
+Unit=michiratagame-backup.service
+
+[Install]
+WantedBy=timers.target
