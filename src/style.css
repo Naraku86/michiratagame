@@ -988,3 +988,7 @@ summary:focus-visible,
   }
   .skins .skin { grid-template-columns: 5rem minmax(0, 1fr); }
 }
+
+@media (max-width: 47.99rem), (pointer: coarse) {
+  .game__settings, .community, .community__content, .skins, .skins__list { touch-action: pan-y pinch-zoom; }
+}

@@ -1,3 +1,4 @@
+import { dismissOnSwipe } from './swipe.ts';
 import './style.css';
 import { cost, milestoneMultiplier, pointsPerClick, production, SKINS, NEW_SKIN_POWERS } from './game.ts';
 import type { GameState, Upgrade, Skin, TapEffect } from './game.ts';
@@ -163,6 +164,7 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
   const toggles = el('div', 'game__toggles');
   toggles.append(soundButton, effectsButton);
   const settings = el('details', 'game__settings');
+  dismissOnSwipe(settings);
   settings.append(el('summary', 'game__settings-title', 'Ajustes'), toggles);
   header.append(settings);
 
@@ -380,6 +382,7 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
   shop.append(shopTitle, shopList);
 
   const skins = el('details', 'skins');
+  dismissOnSwipe(skins);
   const skinsSummary = el('summary', 'skins__toggle', 'Cambiar Michirata');
   skins.id = 'panel-collection';
   skins.setAttribute('aria-labelledby', 'skins-title');

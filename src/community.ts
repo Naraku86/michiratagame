@@ -1,3 +1,4 @@
+import { dismissOnSwipe } from './swipe.ts';
 import { mountAccount } from './account-ui.ts';
 
 type Player = { id: string; name: string; best: number; rank: number; active?: boolean; suspected?: boolean; reason?: string };
@@ -6,6 +7,7 @@ type Snapshot = { active: number; me: Player; players: Player[] };
 export function startCommunity(header: HTMLElement, getPoints: () => number) {
   const menu = document.createElement('details');
   menu.className = 'community';
+  dismissOnSwipe(menu);
   const summary = document.createElement('summary');
   summary.textContent = '👥 …';
   summary.title = 'Conectando con el tablero de jugadores';
