@@ -952,7 +952,6 @@ summary:focus-visible,
   .game__title { font-size: 0.95rem; }
   .game__settings-title { padding: 0.6rem 0.2rem; font-size: 0.8rem; }
   .community__toggle { font-size: 0.75rem; }
-  .skins__list { max-height: min(22dvh, 7rem); }
 }
 
 @media (max-height: 40rem) { .crew__sprites { display: none; } }
@@ -970,3 +969,22 @@ summary:focus-visible,
 .account__controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.4rem; margin: 0.5rem 0; }
 .account button { padding: 0.4rem; font: inherit; font-size: 0.85rem; }
 .account__form { margin: 0.5rem 0; }
+
+/* Open the mobile collection above its toggle without shrinking the play area. */
+@media (max-width: 47.99rem) {
+  .skins { position: relative; }
+  .skins[open] .skins__list {
+    position: absolute;
+    bottom: calc(100% + 0.4rem);
+    left: 0;
+    right: 0;
+    z-index: 9;
+    max-height: 45dvh;
+    grid-template-columns: minmax(0, 1fr);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    box-shadow: 0 8px 28px #0008;
+  }
+  .skins .skin { grid-template-columns: 5rem minmax(0, 1fr); }
+}
