@@ -1,0 +1,10 @@
+# Concepto visual 01
+
+Generado con la herramienta integrada de imágenes. Exploración visual, no interfaz ni mecánicas aprobadas.
+
+Se utilizaron cinco referencias: original aparente (sin accesorios), bufón, magnate, robot y futbolista. El límite de referencias de la herramienta dejó fuera al godín y la variante con lentes.
+
+## Prompt
+
+Use case: stylized-concept. Create a polished concept art board for Michiratagame, an absurd community clicker game for mobile and PC. Use all seven supplied images as CHARACTER REFERENCES only, not as layouts. Preserve recognizable identity: gray fluffy round rat body, cat face, huge rounded mouse ears, black shiny eyes, long bare curved rat tail, cute awkward proportions. The plain character is the original. Include its six existing variants: football player green Mexico jersey number 10 with ball; silver robot; balding glasses black t-shirt; office worker white shirt tie coffee and clipboard; wealthy top hat monocle money bag; colorful blue red jester with cards. No invented variants. Remove all WhatsApp screenshot artifacts and dark screenshot backgrounds.
+Composition: a beautiful landscape game concept presentation with a large central mobile-oriented gameplay panel featuring the ORIGINAL Michirata as the tappable hero, floating +1 feedback, points counter, simple upgrade button; smaller collectible skin cards framing the gameplay, plus small leaderboard and community voting panels. Strong clear hierarchy, generous spacing, readable UI, not a cluttered casino. Charming tactile 3D sticker-like characters with white contour edges consistent with references, vibrant playful game interface, dark plum backdrop with warm gold, turquoise and coral UI highlights, funny rewarding energy. It is a concept mockup, not a narrative scene. No pirates, no purchases, no ads, no gambling mechanics, no third-party app chrome. Spanish UI text only, keep short: "MICHIRATAGAME", "Puntos", "Mejorar", "Skins", "Votación", "Ranking". Preserve character faces and silhouettes closely.

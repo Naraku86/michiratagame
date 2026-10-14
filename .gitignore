@@ -1,0 +1,13 @@
+node_modules/
+dist/
+data/
+.env
+.env.*
+*.log
+*.sqlite
+*.sqlite-*
+*.db
+*.db-*
+.codewhale/
+.claude/
+.DS_Store
