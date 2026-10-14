@@ -1,3 +1,5 @@
+import { mountAccount } from './account-ui.ts';
+
 type Player = { id: string; name: string; best: number; rank: number; active?: boolean; suspected?: boolean; reason?: string };
 type Snapshot = { active: number; me: Player; players: Player[] };
 
@@ -40,6 +42,8 @@ export function startCommunity(header: HTMLElement, getPoints: () => number) {
   content.append(title, note, form, status, personal, table);
   menu.append(summary, content);
   header.append(menu);
+  const account = mountAccount(content, () => { initialized = false; void sync(); });
+  if (account) form.after(content.querySelector('.account')!);
   let busy = false;
   let initialized = false;
   const numbers = new Intl.NumberFormat('es-MX');
@@ -48,8 +52,9 @@ export function startCommunity(header: HTMLElement, getPoints: () => number) {
     busy = true;
     if (name !== undefined) button.disabled = true;
     try {
+      const token = await account?.accessToken();
       const response = await fetch('/api/presence', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
         body: JSON.stringify({ points: getPoints(), ...(name === undefined ? {} : { name }) }),
         signal: AbortSignal.timeout(8000),
       });
