@@ -7,7 +7,8 @@ export function startCommunity(header: HTMLElement, getPoints: () => number) {
   const menu = document.createElement('details');
   menu.className = 'community';
   const summary = document.createElement('summary');
-  summary.textContent = '👥 Conectando…';
+  summary.textContent = '👥 …';
+  summary.title = 'Conectando con el tablero de jugadores';
   summary.className = 'community__toggle';
   const content = document.createElement('div');
   content.className = 'community__content';
@@ -61,6 +62,7 @@ export function startCommunity(header: HTMLElement, getPoints: () => number) {
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? 'No se pudo conectar.');
       const snapshot = data as Snapshot;
+      summary.title = 'Abrir tablero de jugadores';
       summary.textContent = `👥 ${snapshot.active} ${snapshot.active === 1 ? 'activo' : 'activos'}`;
       personal.textContent = `Tu puesto: #${snapshot.me.rank} · récord ${numbers.format(snapshot.me.best)} pts${snapshot.me.suspected ? ' · Tramposo · sospecha' : ''}`;
       personal.title = snapshot.me.reason ?? '';
@@ -85,7 +87,8 @@ export function startCommunity(header: HTMLElement, getPoints: () => number) {
       }
       status.textContent = name === undefined ? '' : 'Nombre guardado.';
     } catch (error) {
-      summary.textContent = '👥 Sin conexión';
+      summary.textContent = '👥 Sin red';
+      summary.title = 'Tablero no disponible; el juego continúa';
       status.textContent = error instanceof Error ? error.message : 'No se pudo conectar. El juego sigue funcionando.';
     } finally { busy = false; button.disabled = false; }
   }
