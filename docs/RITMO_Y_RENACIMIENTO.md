@@ -33,3 +33,7 @@ Guardado v3 atómico con juego, prestigio, ritmo, récord y deducciones; version
 119 pruebas pasan y el build compila. En navegador con reloj controlado se verificó: ritmo 4/s con bono; spam 100/s con saldo decreciente y producción pausada; recuperación al descansar; migración, confirmación de renacimiento, conservación de skins, compra de super mejora y persistencia después de recargar. La prueba de escalado de las 24 skins incluye el margen del bono de ritmo (+10%) bajo el 75% del umbral de sospecha.
 
 **Límite conocido:** el cliente todavía reporta ganancias, bigotes y deducciones. Las validaciones numéricas y retención del servidor no prueban que esos valores se hayan ganado legítimamente; un cliente modificado puede evadir o falsificar esta mecánica. La siguiente corrección competitiva es ejecutar economía y validación de acciones en el backend (ver COLA_DE_CORRECCIONES.md). Estas reglas no son un antitrampa autoritativo.
+
+## Acceso visible en el demo — 19 de octubre
+
+Cuando se cumplen los requisitos aparece `Renacer · +N bigotes` junto al contador. Abre directamente el panel dentro de Ajustes. Después del primer renacimiento muestra los bigotes disponibles y abre las super mejoras; los beneficios por nivel están escritos en cada botón. Se comprobó cancelar/confirmar, conservar skins, comprar mejora y recargar en 320×568, 390×844, 844×390 y 1440×1000. El ranking validado privado y las reglas económicas no cambiaron.

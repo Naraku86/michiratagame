@@ -1000,3 +1000,5 @@ summary:focus-visible,
 .score__prestige { margin: 0.2rem 0 0; font-size: 0.75rem; color: var(--gold); }
 .game[data-rebirth='gold'] .hero__button { box-shadow: 0 0 0 3px #ffd23f; }
 .game[data-rebirth='astral'] .hero__button { box-shadow: 0 0 0 3px #c9a6ff, 0 0 18px #b06ac077; }
+
+button.score__prestige { min-height: 36px; padding: 0.25rem 0.5rem; border: 1px solid var(--gold); border-radius: 8px; background: var(--surface); }

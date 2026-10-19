@@ -470,7 +470,13 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
     superButtons.set(id, button); prestigeMenu.append(button);
   }
   settings.append(prestigeMenu);
-  const prestigeBadge = el('p', 'score__prestige');
+  const prestigeBadge = el('button', 'score__prestige');
+  prestigeBadge.type = 'button';
+  prestigeBadge.addEventListener('click', () => {
+    settings.open = true; prestigeMenu.open = true;
+    prestigeSummary.focus({ preventScroll: true });
+    prestigeSummary.scrollIntoView({ block: 'nearest' });
+  });
   prestigeBadge.hidden = true; scoreMain.append(prestigeBadge);
   const resetButton = el('button', 'game__reset', 'Borrar partida');
   resetButton.type = 'button';
@@ -561,10 +567,11 @@ export function createUI(root: HTMLElement, handlers: UIHandlers): UI {
     for (const id of SUPER_IDS) {
       const level = p.upgrades[id]; const button = superButtons.get(id)!;
       button.disabled = level >= SUPER[id].max || availableBigotes(p) < superCost(level);
-      setText(button, `${SUPER[id].name} ${level}/${SUPER[id].max} · ${level >= SUPER[id].max ? 'Completa' : `${superCost(level)} bigotes`}`);
+      setText(button, `${SUPER[id].name} ${level}/${SUPER[id].max} · ${id === 'garra' ? '+20% clic' : id === 'sindicato' ? '+20% producción' : '−4% precios'} · ${level >= SUPER[id].max ? 'Completa' : `${superCost(level)} bigotes`}`);
     }
-    prestigeBadge.hidden = p.claimed === 0;
-    setText(prestigeBadge, `🎖 ${p.claimed} bigotes · tablero +${Math.min(25, p.claimed)} %`);
+    prestigeBadge.hidden = p.claimed === 0 && !eligible.ok;
+    setText(prestigeBadge, eligible.ok ? `🎖 Renacer · +${pendingBigotes(p)} bigotes` : `🎖 ${availableBigotes(p)} bigotes · Super mejoras`);
+    prestigeBadge.title = `${p.claimed} bigotes obtenidos · bono del tablero +${Math.min(25, p.claimed)} %. Abrir renacimiento y super mejoras.`;
     app.dataset.rebirth = p.achievements.includes('vuelta-completa') ? 'astral' : p.runs > 0 ? 'gold' : 'none';
     if (state.equippedSkin !== currentSkin) {
       currentSkin = state.equippedSkin;
